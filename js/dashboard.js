@@ -34,8 +34,8 @@
     const minis = [
       ['Uren', U.fmtNum(sum.hoursTotal, 1)],
       ['Per uur', sum.incomePerHour != null ? U.fmtMoney(sum.incomePerHour) : '\u2013'],
-      ['Opdrachten', String(sum.projectCount)],
-      ['Gem. per maand', sum.avgMonth != null ? U.fmtMoney(sum.avgMonth) : '\u2013']
+      ['Gem. per maand', sum.avgMonth != null ? U.fmtMoney(sum.avgMonth) : '\u2013'],
+      ['Te ontvangen', sum.outstanding > 0 ? U.fmtMoney(sum.outstanding) : '\u2013']
     ].map(([lb, val]) =>
       '<div class="stat-card"><span class="stat-label">' + lb + '</span><span class="stat-value">' + U.esc(String(val)) + '</span></div>'
     ).join('');
@@ -128,7 +128,15 @@
       '<button type="button" class="up-row card" data-proj="' + U.esc(p.id) + '">' +
       '<span class="up-date proj"><b>' + day + '</b>' + mon + '</span>' +
       '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
-      '<span class="row-sub">' + U.esc(U.fmtDate(p.date)) + (U.projectHours(p) > 0 ? ' \u00B7 ' + U.esc(U.fmtNum(U.projectHours(p), 1)) + ' u' : '') + '</span></span>' +
+      '<span class="row-sub">' +
+      U.esc(
+        [
+          U.fmtDate(p.date),
+          p.client || '',
+          U.projectHours(p) > 0 ? U.fmtNum(U.projectHours(p), 1) + ' u' : ''
+        ].filter(Boolean).join(' \u00B7 ')
+      ) +
+      '</span></span>' +
       '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span>' +
       '<span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span></span>' +
       '</button>'

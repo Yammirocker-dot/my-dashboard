@@ -2854,3 +2854,7 @@ button.set-row:hover {
     scroll-behavior: auto;
   }
 }
+
+/* Betaald-toggle in detailweergave */
+.detail .paid-toggle { margin-top: 14px; }
+

@@ -5,6 +5,7 @@
     return [
       { name: 'name', label: 'Naam', type: 'text', required: true, placeholder: 'bijv. Bedrijfsfilm Sheraton' },
       { name: 'date', label: 'Datum', type: 'date', required: true },
+      { name: 'client', label: 'Klant (optioneel)', type: 'text', placeholder: 'bijv. Sheraton' },
       { name: 'income', label: 'Inkomen (\u20AC)', type: 'number', step: '0.01', min: 0, placeholder: '0,00' },
       { name: 'hours', label: 'Uren', type: 'number', step: '0.25', min: 0, placeholder: '0' },
       {
@@ -27,6 +28,7 @@
     return {
       name: p ? p.name : '',
       date: p && p.date ? p.date : U.todayISO(),
+      client: p ? p.client || '' : '',
       income: p ? String(p.income != null ? p.income : '') : '',
       hours: hoursRaw(p),
       status: p && p.status ? p.status : 'planned',
@@ -58,6 +60,7 @@
       const rec = existing ? Object.assign({}, existing) : { id: U.uid(), createdAt: nowIso };
       rec.name = v.name.trim();
       rec.date = v.date;
+      rec.client = (v.client || '').trim();
       rec.income = v.income != null ? v.income : 0;
       rec.hours = v.hours != null ? v.hours : 0;
       rec.status = v.status || 'planned';
@@ -97,6 +100,10 @@
           ? '\u20AC ' + U.esc(U.fmtNum(iph, 2)) + ' per uur \u00B7 ' + U.esc(U.fmtNum(h, 1)) + ' uur'
           : 'Voer je uren in om je uurtarief te zien.') + '</p>' +
 
+        '<button type="button" class="btn ' + (p.status === 'paid' ? 'btn-ghost' : 'btn-gold') + ' btn-block paid-toggle" data-toggle-paid>' +
+        Icons.check + (p.status === 'paid' ? 'Terug naar niet-betaald' : 'Markeer als betaald') +
+        '</button>' +
+
         '<div class="card detail-card"><div class="chip-row seg scroll">' +
         U.PROJECT_STATUS.map((s) =>
           '<button type="button" class="chip sm' + (p.status === s.id ? ' active' : '') + '" data-set-status="' + s.id + '">' + U.esc(s.label) + '</button>'
@@ -105,6 +112,7 @@
 
         '<div class="card detail-card meta-list">' +
         mrow(Icons.calendar, 'Datum', U.esc(U.fmtDate(p.date))) +
+        (p.client ? mrow(Icons.user, 'Klant', U.esc(p.client)) : '') +
         mrow(Icons.clock, 'Uren', U.esc(U.fmtNum(h, 1))) +
         mrow(Icons.trendingUp, 'Per uur', iph != null ? U.esc(U.fmtMoney(iph)) : '\u2013') +
         '</div>' +
@@ -122,6 +130,12 @@
           draw();
         })
       );
+      U.qs('[data-toggle-paid]', sh.body).addEventListener('click', async () => {
+        const cur = build();
+        const next = cur && cur.status === 'paid' ? 'delivered' : 'paid';
+        await App.patchRecord('projects', id, { status: next });
+        draw();
+      });
       U.qs('[data-edit]', sh.body).addEventListener('click', () => openForm(build(), null, draw));
       U.qs('[data-del]', sh.body).addEventListener('click', async () => {
         const ok = await confirmAction({

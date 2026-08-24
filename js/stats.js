@@ -38,6 +38,12 @@
       hours += U.projectHours(p);
     });
     const monthsElapsed = calcMonthsElapsed(data, r);
+
+    let outstanding = 0;
+    (data.projects || []).forEach((p) => {
+      if (p.status !== 'paid') outstanding += Number(p.income) || 0;
+    });
+
     return {
       income,
       hoursTotal: hours,
@@ -46,6 +52,7 @@
       avgMonth: monthsElapsed > 0 ? income / monthsElapsed : null,
       monthsElapsed,
       bestMonth: findBestMonth(data, r),
+      outstanding,
       hasData: projects.length > 0
     };
   }

@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.1.2';
+  const VERSION = '1.1.3';
 
   const state = {
     route: 'start',
@@ -9,6 +9,7 @@
     dashPeriod: 'month',
     calCursor: null,
     calSelected: null,
+    calFilter: '',
     started: false
   };
 
