@@ -284,6 +284,35 @@
   let isConfiguredSync = false;
   isConfigured().then((v) => { isConfiguredSync = v; });
 
+  function verifyPinFlow() {
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const sh = Sheet.open({ title: 'Bevestig met PIN' });
+      const pad = pinPad({
+        minLen: 4,
+        submitLabel: 'Bevestigen',
+        onSubmit: async (pin) => {
+          if (await verify(pin)) {
+            finish(true);
+            sh.close();
+          } else {
+            const errEl = U.qs('.pin-error', pad.el);
+            if (errEl) errEl.textContent = 'Verkeerde code';
+          }
+        }
+      });
+      sh.body.appendChild(pad.el);
+      const cancel = document.createElement('button');
+      cancel.type = 'button';
+      cancel.className = 'btn btn-ghost btn-block';
+      cancel.textContent = 'Annuleren';
+      cancel.style.marginTop = '12px';
+      cancel.addEventListener('click', () => { finish(false); sh.close(); });
+      sh.body.appendChild(cancel);
+    });
+  }
+
   window.Auth = {
     configure,
     verify,
@@ -291,6 +320,7 @@
     showLock,
     runOnboarding,
     changePinFlow,
+    verifyPinFlow,
     initAutoLock,
     isLocked: () => locked,
     refreshConfigured() { return isConfigured().then((v) => { isConfiguredSync = v; }); }

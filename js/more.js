@@ -76,7 +76,7 @@
     const oldSub = sub ? sub.textContent : '';
     btn.disabled = true;
     if (sub) sub.textContent = 'Controleren\u2026';
-    let updated = false;
+    let found = null;
     try {
       const reg = window.__swReg || await navigator.serviceWorker.getRegistration();
       if (!reg) {
@@ -87,13 +87,7 @@
       }
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing || reg.waiting;
-        if (!nw) return;
-        nw.addEventListener('statechange', () => {
-          if (nw.state === 'activated') {
-            updated = true;
-            location.reload();
-          }
-        });
+        if (nw) found = nw;
       });
       try {
         await navigator.serviceWorker.register(
@@ -105,22 +99,35 @@
       await new Promise((resolve) => {
         let waited = 0;
         const timer = setInterval(() => {
-          waited += 400;
-          if (updated || reg.waiting || waited >= 6000) {
+          waited += 300;
+          if (found || reg.waiting || waited >= 6000) {
             clearInterval(timer);
             resolve();
           }
-        }, 400);
+        }, 300);
       });
+
       btn.disabled = false;
       if (sub) sub.textContent = oldSub;
-      if (!updated) {
-        if (reg.waiting) {
-          location.reload();
-        } else {
-          toast('Nog geen nieuwe versie \u2014 probeer over een paar minuten opnieuw');
-        }
+
+      if (!found && !reg.waiting) {
+        toast('Je hebt de nieuwste versie');
+        return;
       }
+
+      const ok = await Auth.verifyPinFlow();
+      if (!ok) {
+        toast('Geannuleerd \u2014 update niet uitgevoerd');
+        return;
+      }
+
+      const worker = reg.waiting || found;
+      for (let i = 0; i < 40; i++) {
+        const pending = reg.installing || reg.waiting;
+        if (!pending && reg.active) break;
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      location.reload();
     } catch (e) {
       btn.disabled = false;
       if (sub) sub.textContent = oldSub;
