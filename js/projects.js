@@ -21,6 +21,7 @@
     return {
       name: p ? p.name : '',
       date: p && p.date ? p.date : '',
+      time: p ? p.time || '' : '',
       client: p ? p.client || '' : '',
       income: p ? String(p.income != null ? p.income : '') : '',
       budgetMin: p && p.budgetMin != null ? String(p.budgetMin) : '',
@@ -86,10 +87,21 @@
       '</label>' +
       '</div>';
 
+    const timeBlock =
+      '<div class="field" data-time-row>' +
+      '<label class="check-row">' +
+      '<input type="checkbox" data-time-toggle' + (vals.time ? ' checked' : '') + '>' +
+      '<span>Tijdstip opgeven</span>' +
+      '</label>' +
+      '<input type="time" class="input" name="time" data-time-input value="' + U.esc(vals.time || '') + '"' +
+      (vals.time ? '' : ' style="display:none"') + '>' +
+      '</div>';
+
     let fieldsHTML = '';
     cfg.forEach((f) => {
       fieldsHTML += Forms.fieldRow(Object.assign({}, f, { value: vals[f.name] }));
       if (f.name === 'name') fieldsHTML += conceptBlock;
+      if (f.name === 'date') fieldsHTML += timeBlock;
       if (f.name === 'income') fieldsHTML += ivBlock;
     });
 
@@ -143,6 +155,20 @@
       }
     });
 
+    const timeToggle = U.qs('[data-time-toggle]', sh.body);
+    const timeInput = U.qs('[data-time-input]', sh.body);
+    timeToggle.addEventListener('change', () => {
+      timeInput.style.display = timeToggle.checked ? '' : 'none';
+      if (!timeToggle.checked) timeInput.value = '';
+    });
+    U.qs('[data-field="date"] input', sh.body).addEventListener('change', () => {
+      if (!form.elements['date'].value) {
+        timeToggle.checked = false;
+        timeInput.value = '';
+        timeInput.style.display = 'none';
+      }
+    });
+
     U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -172,6 +198,15 @@
         rec.budgetMax = null;
       }
       rec.client = (v.client || '').trim();
+      rec.time = '';
+      const tOn = timeToggle.checked;
+      if (tOn && timeInput.value) {
+        if (!rec.date) {
+          toast('Kies eerst een datum voordat je een tijdstip opgeeft', 'error');
+          return;
+        }
+        rec.time = timeInput.value;
+      }
       rec.income = v.income != null ? v.income : 0;
       const filledIvs = collectIvs().filter((iv) => iv.from && iv.to);
       if (filledIvs.some((iv) => iv.to <= iv.from)) {
@@ -234,7 +269,7 @@
         '</div></div>' +
 
         '<div class="card detail-card meta-list">' +
-        (p.date ? mrow(Icons.calendar, 'Datum', U.esc(U.fmtDate(p.date))) : '') +
+        (p.date ? mrow(Icons.calendar, 'Datum', U.esc(U.fmtDate(p.date) + (p.time ? ' \u00B7 ' + p.time : ''))) : '') +
         (p.concept && (p.budgetMin != null || p.budgetMax != null)
           ? mrow(Icons.trendingUp, 'Budget', U.esc(U.fmtBudget(p)))
           : '') +

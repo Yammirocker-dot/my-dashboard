@@ -141,6 +141,7 @@
       U.esc(
         [
           p.date ? U.fmtDate(p.date) : 'Geen datum',
+          p.date && p.time ? p.time : '',
           p.client || '',
           U.projectHours(p) > 0 ? U.fmtNum(U.projectHours(p), 1) + ' u' : ''
         ].filter(Boolean).join(' \u00B7 ')

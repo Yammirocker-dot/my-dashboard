@@ -2880,3 +2880,18 @@ button.set-row:hover {
 .check-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); flex: none; }
 .up-row.no-date .up-date { display: none; }
 .up-row.no-date .row-main { padding-left: 2px; }
+
+/* Statuschips binnen schermbreedte houden */
+.detail-card .chip-row,
+.detail-card .chip-row.seg {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.detail-card .chip-row.seg .chip {
+  flex: 0 1 auto;
+}
+
+/* Tijdstip-optioneel rij */
+[data-time-row] .check-row { margin-bottom: 2px; }
+[data-time-row] [data-time-input] { max-width: 160px; }
