@@ -39,6 +39,7 @@
       '<h3 class="section-title">App</h3>' +
       '<div class="card set-group">' +
       '<div class="set-row static"><span class="set-icon">' + Icons.folder + '</span><span class="set-main">Versie</span><span class="set-value">' + App.VERSION + '</span></div>' +
+      '<button type="button" class="set-row" data-action="check-updates"><span class="set-icon">' + Icons.download + '</span><span class="set-main">Check voor updates<span class="set-sub">Haalt de nieuwste versie op</span></span></button>' +
       '<div class="set-row static"><span class="set-icon">' + Icons.wifiOff + '</span><span class="set-main">Verbinding</span><span class="set-value" id="conn-state">' + (online ? 'Online' : 'Offline \u2014 werkt lokaal') + '</span></div>' +
       '</div>' +
       '<p class="privacy-note">' + Icons.shieldCheck + ' Al jouw gegevens blijven op dit toestel. Er wordt niets verzonden.</p>' +
@@ -69,6 +70,44 @@
     window.addEventListener('offline', upd);
   }
 
+  async function checkForUpdates(btn) {
+    if (!('serviceWorker' in navigator)) { toast('Updates worden niet ondersteund', 'error'); return; }
+    const sub = btn.querySelector('.set-sub');
+    const oldSub = sub ? sub.textContent : '';
+    btn.disabled = true;
+    if (sub) sub.textContent = 'Controleren\u2026';
+    let updated = false;
+    try {
+      const reg = window.__swReg || await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        toast('Je hebt de nieuwste versie');
+        btn.disabled = false;
+        if (sub) sub.textContent = oldSub;
+        return;
+      }
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'activated') {
+            updated = true;
+            location.reload();
+          }
+        });
+      });
+      await reg.update();
+      setTimeout(() => {
+        btn.disabled = false;
+        if (sub) sub.textContent = oldSub;
+        if (!updated) toast('Je hebt de nieuwste versie');
+      }, 2000);
+    } catch (e) {
+      btn.disabled = false;
+      if (sub) sub.textContent = oldSub;
+      toast(navigator.onLine ? 'Kon niet controleren' : 'Offline \u2014 geen verbinding', 'error');
+    }
+  }
+
   function bindSettings(root) {
     const alSel = U.qs('#autolock-sel', root);
     alSel.addEventListener('change', async () => {
@@ -88,6 +127,7 @@
         else if (a === 'export') exportData();
         else if (a === 'import') pickImportFile();
         else if (a === 'reset') resetFlow();
+        else if (a === 'check-updates') checkForUpdates(b);
       })
     );
 

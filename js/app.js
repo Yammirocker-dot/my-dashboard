@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.4.0';
+  const VERSION = '1.4.1';
 
   const state = {
     route: 'start',
@@ -180,7 +180,9 @@
 
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
       try {
-        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+        navigator.serviceWorker.register('./service-worker.js')
+          .then((reg) => { window.__swReg = reg; })
+          .catch(() => {});
       } catch (e) {}
     }
   }
