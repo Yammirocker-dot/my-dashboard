@@ -166,6 +166,19 @@ svg {
   user-select: none;
 }
 
+.brand-img {
+  display: block;
+  border-radius: 24%;
+  object-fit: cover;
+  background: #182a18;
+}
+
+.splash-logo .brand-img { width: 78px; height: 78px; }
+.topbar-brand .brand-img, .topbar-logo { width: 30px; height: 30px; }
+.sidebar-brand .brand-img { width: 34px; height: 34px; }
+.lock-brand .brand-img { width: 56px; height: 56px; margin: 0 auto; }
+.ob-brand .brand-img { width: 54px; height: 54px; }
+
 .logo-vhx {
   color: var(--txt);
 }
@@ -247,7 +260,7 @@ svg {
   bottom: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   padding: 6px 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
   background: rgba(10, 17, 12, 0.88);
   backdrop-filter: blur(18px);
@@ -1660,6 +1673,9 @@ svg {
 .field select,
 .field textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   background: var(--bg2);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
@@ -1668,6 +1684,14 @@ svg {
   font-size: 15px;
   transition: border-color 0.15s ease;
   min-height: 47px;
+}
+
+.field input[type="date"],
+.field input[type="time"] {
+  display: block;
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 16px;
 }
 
 .field textarea {

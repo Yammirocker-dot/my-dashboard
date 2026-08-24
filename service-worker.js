@@ -1,12 +1,10 @@
-const CACHE = 'vhxmedia-v1.1.1';
+const CACHE = 'vhxmedia-v1.1.2';
 
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './manifest.json',
-  './favicon.svg',
-  './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',

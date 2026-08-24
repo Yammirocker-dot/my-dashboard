@@ -123,7 +123,7 @@
   }
 
   function brandHTML(sub) {
-    return '<div class="wordmark lock-brand"><span class="logo-vhx">VHX</span><span class="logo-media">media</span></div>' +
+    return '<div class="lock-brand"><img class="brand-img" src="./icons/icon-192.png" alt=""></div>' +
       '<p class="lock-sub">' + U.esc(sub || '') + '</p>';
   }
 
@@ -176,7 +176,7 @@
     function stepWelcome() {
       ob.innerHTML =
         '<div class="ob-card">' +
-        '<div class="wordmark ob-brand"><span class="logo-vhx">VHX</span><span class="logo-media">media</span></div>' +
+        '<div class="ob-brand"><img class="brand-img" src="./icons/icon-192.png" alt=""></div>' +
         '<h1>Welkom bij VHXmedia</h1>' +
         '<p class="ob-text">Jouw persoonlijke dashboard voor opdrachten, klanten en financi\u00EBn.</p>' +
         '<div class="ob-note">' + Icons.shieldCheck + '<span>Al jouw gegevens worden uitsluitend lokaal op dit toestel opgeslagen. Er wordt niets verzonden of gedeeld.</span></div>' +

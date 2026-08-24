@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.1.1';
+  const VERSION = '1.1.2';
 
   const state = {
     route: 'start',
@@ -92,7 +92,7 @@
       else el.removeAttribute('aria-current');
     });
     const tb = document.getElementById('topbar-title');
-    const brand = document.querySelector('.topbar-brand');
+    const brand = document.querySelector('.topbar-logo');
     const t = TITLES[route] != null ? TITLES[route] : '';
     if (t) {
       tb.textContent = t;

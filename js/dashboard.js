@@ -93,22 +93,6 @@
       }).join('');
     }
 
-    const recent = S.data.projects.slice()
-      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
-      .slice(0, 4);
-
-    let recentHTML;
-    if (!recent.length) {
-      recentHTML =
-        '<div class="empty slim"><h3>Nog geen opdrachten</h3><p>Voeg je eerste opdracht toe via de + knop onderaan.</p>' +
-        '<button class="btn btn-gold btn-sm" data-action="add-project">+ Opdracht toevoegen</button></div>';
-    } else {
-      recentHTML = recent.map((p) => {
-        const d = U.parseISO(p.date);
-        return projRow(p, d ? d.getDate() : '?', d ? U.MONTHS_SHORT[d.getMonth()].toUpperCase() : '');
-      }).join('');
-    }
-
     root.innerHTML =
       '<section class="dash fade-in">' +
       '<header class="view-head"><div>' +
@@ -125,8 +109,6 @@
       '</div>' +
       '<div class="section-row"><h3 class="section-title">Komende opdrachten</h3><button type="button" class="link-btn" data-nav="calendar">Kalender</button></div>' +
       '<div class="stack-list">' + upHTML + '</div>' +
-      '<div class="section-row"><h3 class="section-title">Recent toegevoegd</h3></div>' +
-      '<div class="stack-list">' + recentHTML + '</div>' +
       '</section>';
 
     requestAnimationFrame(() => {
