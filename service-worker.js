@@ -1,4 +1,4 @@
-const CACHE = 'vhxmedia-v1.0.0';
+const CACHE = 'vhxmedia-v1.1.0';
 
 const ASSETS = [
   './',
@@ -17,10 +17,8 @@ const ASSETS = [
   './js/stats.js',
   './js/charts.js',
   './js/auth.js',
-  './js/dashboard.js',
-  './js/finance.js',
   './js/projects.js',
-  './js/clients.js',
+  './js/dashboard.js',
   './js/calendar.js',
   './js/more.js',
   './js/app.js'

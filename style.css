@@ -847,6 +847,27 @@ svg {
   margin-top: 12px;
 }
 
+.chip-row.seg {
+  display: inline-flex;
+  padding: 4px;
+  gap: 5px;
+  border-radius: 15px;
+  background: rgba(226, 240, 228, 0.045);
+  border: 1px solid var(--line);
+}
+
+.chip-row.seg .chip {
+  border-color: transparent;
+  background: none;
+  padding: 7.5px 14px;
+}
+
+.chip-row.seg .chip.active {
+  background: rgba(212, 144, 59, 0.16);
+  border-color: rgba(212, 144, 59, 0.35);
+  color: var(--gold);
+}
+
 .chip-row.scroll {
   overflow-x: auto;
   scrollbar-width: none;

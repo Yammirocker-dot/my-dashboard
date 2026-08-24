@@ -1,7 +1,7 @@
 (function () {
   const U = window.U;
 
-  function dashPeriod() {
+  function dashRange() {
     const t = App.state.dashPeriod;
     const y = new Date().getFullYear();
     if (t === 'year') return Stats.periodRange({ type: 'year', y });
@@ -9,16 +9,9 @@
     return Stats.periodRange({ type: 'month' });
   }
 
-  function periodLabel(r) {
-    const t = App.state.dashPeriod;
-    if (t === 'year') return r.label;
-    if (t === 'all') return 'aller tijden';
-    return r.label;
-  }
-
   function render(root) {
     const S = App.state;
-    const r = dashPeriod();
+    const r = dashRange();
     const sum = Stats.summarize(S.data, r);
     const goal = Stats.goalInfo(S.settings, S.data.projects);
     const name = S.settings.userName || 'Liam';
@@ -32,34 +25,31 @@
       '</div>';
 
     const hero =
-      '<div class="card hero-card" data-nav="finance">' +
-      '<div class="card-label">' + U.esc('Totale inkomsten') + '</div>' +
-      '<div class="big-number">' + U.esc(U.fmtMoney(sum.total)) + '</div>' +
-      '<div class="hero-meta">' + U.esc(periodLabel(r)) + '</div>' +
+      '<div class="card hero-card static">' +
+      '<div class="card-label">Totale inkomsten</div>' +
+      '<div class="big-number">' + U.esc(U.fmtMoney(sum.income)) + '</div>' +
+      '<div class="hero-meta">' + U.esc(r.label) + '</div>' +
       '</div>';
 
     const minis = [
-      ['VHXmedia', U.fmtMoney(sum.vhx), 'gold'],
-      ['Overig', U.fmtMoney(sum.other), ''],
-      ['Uitgaven', U.fmtMoney(sum.expenses), 'neg'],
-      ['Netto', U.fmtMoney(sum.net), 'pos']
-    ].map(([lb, val, cls]) =>
-      '<button type="button" class="stat-card ' + cls + '" data-nav="finance">' +
-      '<span class="stat-label">' + lb + '</span>' +
-      '<span class="stat-value">' + U.esc(val) + '</span>' +
-      '</button>'
+      ['Uren', U.fmtNum(sum.hoursTotal, 1)],
+      ['Per uur', sum.incomePerHour != null ? U.fmtMoney(sum.incomePerHour) : '\u2013'],
+      ['Opdrachten', String(sum.projectCount)],
+      ['Gem. per maand', sum.avgMonth != null ? U.fmtMoney(sum.avgMonth) : '\u2013']
+    ].map(([lb, val]) =>
+      '<div class="stat-card"><span class="stat-label">' + lb + '</span><span class="stat-value">' + U.esc(String(val)) + '</span></div>'
     ).join('');
 
     let goalInner;
     if (!goal.target) {
       goalInner =
-        '<div class="goal-head"><span class="card-label">VHXmedia doel</span></div>' +
+        '<div class="goal-head"><span class="card-label">Jaardoel</span></div>' +
         '<p class="goal-empty-text">Er is nog geen jaardoel ingesteld.</p>' +
         '<button class="btn btn-gold btn-sm" data-action="set-goal">Doel instellen</button>';
     } else {
       goalInner =
         '<div class="goal-head">' +
-        '<span class="card-label">VHXmedia doel ' + goal.year + '</span>' +
+        '<span class="card-label">Jaardoel ' + goal.year + '</span>' +
         '<span class="goal-pct">' + U.esc(U.fmtPct(goal.rawPct)) + '</span>' +
         '</div>' +
         '<div class="goal-nums">' + U.esc(U.fmtMoney(goal.current)) + ' <span class="goal-of">/ ' + U.esc(U.fmtMoney(goal.target)) + '</span></div>' +
@@ -69,18 +59,8 @@
         '<p class="goal-rem">' + (goal.exceeded ? 'Doel behaald \uD83C\uDF89' : U.esc(U.fmtMoney(goal.remaining)) + ' resterend') + '</p>';
     }
 
-    const bestM = sum.bestMonth;
-    const perf = [
-      ['Gemiddeld per maand', sum.avgMonth != null ? U.fmtMoney(sum.avgMonth) : '\u2013', U.esc(periodLabel(r))],
-      ['Beste maand', bestM ? U.esc(bestM.label) : '\u2013', bestM ? U.esc(U.fmtMoney(bestM.value)) : 'nog geen gegevens'],
-      ['Inkomen per uur', sum.incomePerHour != null ? U.esc(U.fmtMoney(sum.incomePerHour)) : 'Geen uren', 'VHXmedia'],
-      ['Openstaand', U.esc(U.fmtMoney(sum.outstanding)), 'nog te ontvangen']
-    ].map(([lb, v, sub]) =>
-      '<div class="perf-tile card"><span class="stat-label">' + lb + '</span><span class="perf-value">' + v + '</span><span class="perf-sub">' + sub + '</span></div>'
-    ).join('');
-
     const buckets = Stats.monthBuckets(S.data, curYear);
-    const hasChartData = buckets.some((b) => b.total > 0 || b.expenses > 0);
+    const hasChartData = buckets.some((b) => b.income > 0);
     let chartHTML;
     if (!hasChartData) {
       chartHTML = '<div class="chart-empty">' + U.esc('Nog geen inkomsten in ' + curYear + '.') + '</div>';
@@ -88,12 +68,29 @@
       chartHTML = Charts.stackedBars({
         labels: buckets.map((b) => b.label),
         series: [
-          { name: 'VHXmedia', color: '#d4903b', values: buckets.map((b) => b.vhx) },
-          { name: 'Overig', color: '#5f8763', values: buckets.map((b) => b.other) }
+          { name: 'Inkomsten', color: '#d4903b', values: buckets.map((b) => b.income) }
         ],
         height: 200,
         label: 'Maandelijkse inkomsten ' + curYear
       });
+    }
+
+    const todayISOStr = U.todayISO();
+    const upcoming = S.data.projects
+      .filter((p) => p.date && p.date >= todayISOStr)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 4);
+
+    let upHTML;
+    if (!upcoming.length) {
+      upHTML =
+        '<div class="empty slim"><h3>Niets gepland</h3><p>Er staan geen komende opdrachten in je kalender.</p>' +
+        '<button class="btn btn-ghost btn-sm" data-action="go-calendar">Kalender openen</button></div>';
+    } else {
+      upHTML = upcoming.map((p) => {
+        const d = U.parseISO(p.date);
+        return projRow(p, d.getDate(), U.MONTHS_SHORT[d.getMonth()].toUpperCase());
+      }).join('');
     }
 
     const recent = S.data.projects.slice()
@@ -102,42 +99,13 @@
 
     let recentHTML;
     if (!recent.length) {
-      recentHTML = '<div class="empty slim"><h3>Nog geen opdrachten</h3><p>Voeg je eerste VHXmedia-opdracht toe om je inkomsten bij te houden.</p><button class="btn btn-gold btn-sm" data-action="add-project">+ Opdracht toevoegen</button></div>';
+      recentHTML =
+        '<div class="empty slim"><h3>Nog geen opdrachten</h3><p>Voeg je eerste opdracht toe via de + knop onderaan.</p>' +
+        '<button class="btn btn-gold btn-sm" data-action="add-project">+ Opdracht toevoegen</button></div>';
     } else {
-      recentHTML = recent.map((p) => projRow(p)).join('');
-    }
-
-    const todayISOStr = U.todayISO();
-    const upcoming = [];
-    S.data.events.forEach((ev) => {
-      if (ev.date && ev.date >= todayISOStr) upcoming.push({ kind: 'event', date: ev.date, time: ev.startTime || '', obj: ev });
-    });
-    S.data.projects.forEach((p) => {
-      if (p.date && p.date >= todayISOStr) upcoming.push({ kind: 'project', date: p.date, time: '', obj: p });
-    });
-    upcoming.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''));
-    const next4 = upcoming.slice(0, 4);
-
-    let upHTML;
-    if (!next4.length) {
-      upHTML = '<div class="empty slim"><h3>Niets gepland</h3><p>Er staan geen komende afspraken of opdrachten in je kalender.</p><button class="btn btn-ghost btn-sm" data-action="go-calendar">Kalender openen</button></div>';
-    } else {
-      upHTML = next4.map((it) => {
-        const d = U.parseISO(it.date);
-        const day = d.getDate();
-        const mon = U.MONTHS_SHORT[d.getMonth()].toUpperCase();
-        if (it.kind === 'event') {
-          return '<button type="button" class="up-row card" data-event="' + U.esc(it.obj.id) + '">' +
-            '<span class="up-date"><b>' + day + '</b>' + mon + '</span>' +
-            '<span class="up-main"><span class="up-title">' + U.esc(it.obj.title) + '</span>' +
-            '<span class="up-sub">' + (it.obj.startTime ? U.esc(it.obj.startTime) + (it.obj.endTime ? ' \u2013 ' + U.esc(it.obj.endTime) : '') : 'Afspraak') + '</span></span>' +
-            Icons.chevronRight + '</button>';
-        }
-        return '<button type="button" class="up-row card" data-proj="' + U.esc(it.obj.id) + '">' +
-          '<span class="up-date proj"><b>' + day + '</b>' + mon + '</span>' +
-          '<span class="up-main"><span class="up-title">' + U.esc(it.obj.name) + '</span>' +
-          '<span class="up-sub">Opdracht</span></span>' +
-          Icons.chevronRight + '</button>';
+      recentHTML = recent.map((p) => {
+        const d = U.parseISO(p.date);
+        return projRow(p, d ? d.getDate() : '?', d ? U.MONTHS_SHORT[d.getMonth()].toUpperCase() : '');
       }).join('');
     }
 
@@ -151,42 +119,34 @@
       hero +
       '<div class="mini-grid">' + minis + '</div>' +
       '<div class="card goal-card">' + goalInner + '</div>' +
-      '<div class="perf-grid">' + perf + '</div>' +
       '<div class="card chart-card">' +
-      '<div class="chart-head"><h3 class="section-title">Inkomsten per maand <span class="muted">' + curYear + '</span></h3>' +
-      '<div class="legend"><span class="legend-item"><i style="background:#d4903b"></i>VHXmedia</span><span class="legend-item"><i style="background:#5f8763"></i>Overig</span></div></div>' +
+      '<div class="chart-head"><h3 class="section-title">Inkomsten per maand <span class="muted">' + curYear + '</span></h3></div>' +
       chartHTML +
       '</div>' +
-      '<div class="section-row"><h3 class="section-title">Recente opdrachten</h3><button type="button" class="link-btn" data-nav="projects">Alles bekijken</button></div>' +
-      '<div class="stack-list">' + recentHTML + '</div>' +
-      '<div class="section-row"><h3 class="section-title">Komende afspraken</h3><button type="button" class="link-btn" data-nav="calendar">Kalender</button></div>' +
+      '<div class="section-row"><h3 class="section-title">Komende opdrachten</h3><button type="button" class="link-btn" data-nav="calendar">Kalender</button></div>' +
       '<div class="stack-list">' + upHTML + '</div>' +
+      '<div class="section-row"><h3 class="section-title">Recent toegevoegd</h3></div>' +
+      '<div class="stack-list">' + recentHTML + '</div>' +
       '</section>';
 
-    animateProgress(root);
-    bind(root);
-  }
-
-  function animateProgress(scope) {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        U.qsa('.progress-fill[data-w]', scope).forEach((el) => {
+        U.qsa('.progress-fill[data-w]', root).forEach((el) => {
           el.style.width = el.getAttribute('data-w') + '%';
         });
       });
     });
+
+    bind(root);
   }
 
-  function projRow(p) {
+  function projRow(p, day, mon) {
     const st = U.statusInfo(U.PROJECT_STATUS, p.status);
-    const client = App.clientName(p.clientId);
     return (
-      '<button type="button" class="row-item card" data-proj="' + U.esc(p.id) + '">' +
-      '<span class="status-dot" style="background:' + st.color + '" aria-hidden="true"></span>' +
-      '<span class="row-main">' +
-      '<span class="row-title">' + U.esc(p.name) + '</span>' +
-      '<span class="row-sub">' + U.esc(client) + ' \u00B7 ' + U.esc(U.fmtDate(p.date)) + '</span>' +
-      '</span>' +
+      '<button type="button" class="up-row card" data-proj="' + U.esc(p.id) + '">' +
+      '<span class="up-date proj"><b>' + day + '</b>' + mon + '</span>' +
+      '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
+      '<span class="row-sub">' + U.esc(U.fmtDate(p.date)) + (U.projectHours(p) > 0 ? ' \u00B7 ' + U.esc(U.fmtNum(U.projectHours(p), 1)) + ' u' : '') + '</span></span>' +
       '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span>' +
       '<span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span></span>' +
       '</button>'
@@ -207,12 +167,6 @@
     U.qsa('[data-proj]', root).forEach((b) =>
       b.addEventListener('click', () => Projects.openDetail(b.getAttribute('data-proj')))
     );
-    U.qsa('[data-event]', root).forEach((b) =>
-      b.addEventListener('click', () => {
-        const ev = App.state.data.events.find((e) => e.id === b.getAttribute('data-event'));
-        if (ev) CalendarMod.openEventForm(ev);
-      })
-    );
     const gp = U.qs('[data-action=set-goal]', root);
     if (gp) gp.addEventListener('click', () => More.openGoalEditor(() => render(root)));
     const ap = U.qs('[data-action=add-project]', root);
@@ -222,5 +176,5 @@
   }
 
   window.Views = window.Views || {};
-  window.Views.dashboard = render;
+  window.Views.start = render;
 })();

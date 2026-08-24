@@ -204,7 +204,14 @@
             U.qs('.ob-text', ob).textContent = 'Voer dezelfde PIN nogmaals in ter bevestiging.';
             pad.el.querySelector('.pin-submit').disabled = true;
           } else if (pin === first) {
-            configure(first).then(stepGoal);
+            configure(first).then(async () => {
+              await DB.setSetting('goal', 0);
+              await DB.setSetting('userName', 'Liam');
+              await DB.setSetting('autoLock', 5);
+              await DB.setSetting('onboarded', true);
+              root.innerHTML = '';
+              done();
+            });
           } else {
             first = null;
             pad.clear();
@@ -215,40 +222,6 @@
         }
       });
       holder.appendChild(pad.el);
-    }
-
-    function stepGoal() {
-      ob.innerHTML =
-        '<div class="ob-card">' +
-        '<h1>Doel &amp; naam</h1>' +
-        '<p class="ob-text">Optioneel: stel je jaarlijkse VHXmedia-inkomsten doel in.</p>' +
-        '<form id="ob-form">' +
-        Forms.fieldRow({ name: 'userName', label: 'Jouw naam', type: 'text', value: 'Liam', autocomplete: 'given-name' }) +
-        Forms.fieldRow({ name: 'goal', label: 'Jaardoel VHXmedia (\u20AC)', type: 'number', placeholder: 'bijv. 30000', step: '0.01', min: 0 }) +
-        '<div class="field-error" data-err="_form" role="alert"></div>' +
-        '<button type="submit" class="btn btn-gold btn-block">Dashboard openen</button>' +
-        '<button type="button" class="btn btn-ghost btn-block" id="ob-skip">Overslaan</button>' +
-        '</form>' +
-        '</div>';
-      const finish = async (vals) => {
-        await DB.setSetting('goal', vals && vals.goal ? vals.goal : 0);
-        await DB.setSetting('userName', vals && vals.userName ? vals.userName.trim() : 'Liam');
-        await DB.setSetting('autoLock', 5);
-        await DB.setSetting('onboarded', true);
-        root.innerHTML = '';
-        done();
-      };
-      U.qs('#ob-skip', ob).addEventListener('click', () => finish(null));
-      U.qs('#ob-form', ob).addEventListener('submit', (e) => {
-        e.preventDefault();
-        const res = Forms.readForm(e.target, [
-          { name: 'userName', label: 'Naam', type: 'text' },
-          { name: 'goal', label: 'Jaardoel', type: 'number', min: 0 }
-        ]);
-        if (!res.ok) return;
-        if (res.values.goal != null && res.values.goal <= 0) res.values.goal = null;
-        finish(res.values);
-      });
     }
 
     stepWelcome();

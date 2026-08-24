@@ -5,22 +5,22 @@
 
   function periodRange(period) {
     const now = new Date();
-    if (!period || period.type === 'all') {
-      return { start: null, end: null, year: null, label: 'Alle periodes' };
+    const t = (period && period.type) || 'month';
+    if (t === 'all') {
+      return { start: null, end: null, label: 'Alle periodes' };
     }
-    if (period.type === 'month') {
+    if (t === 'year') {
       const y = period.y != null ? period.y : now.getFullYear();
-      const m = period.m != null ? period.m : now.getMonth();
-      const last = new Date(y, m + 1, 0).getDate();
-      return {
-        start: y + '-' + pad2(m + 1) + '-01',
-        end: y + '-' + pad2(m + 1) + '-' + pad2(last),
-        year: y,
-        label: U.MONTHS_LONG[m] + ' ' + y
-      };
+      return { start: y + '-01-01', end: y + '-12-31', label: String(y) };
     }
-    const y = period.y != null ? period.y : now.getFullYear();
-    return { start: y + '-01-01', end: y + '-12-31', year: y, label: String(y) };
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const last = new Date(y, m + 1, 0).getDate();
+    return {
+      start: y + '-' + pad2(m + 1) + '-01',
+      end: y + '-' + pad2(m + 1) + '-' + pad2(last),
+      label: U.MONTHS_LONG[m] + ' ' + y
+    };
   }
 
   function inRange(iso, r) {
@@ -32,51 +32,21 @@
 
   function summarize(data, r) {
     const projects = (data.projects || []).filter((p) => inRange(p.date, r));
-    const others = (data.otherIncome || []).filter((e) => inRange(e.date, r));
-    const exps = (data.expenses || []).filter((e) => inRange(e.date, r));
-
-    let vhx = 0, filmingH = 0, editingH = 0;
+    let income = 0, hours = 0;
     projects.forEach((p) => {
-      vhx += Number(p.income) || 0;
-      filmingH += Number(p.filmingHours) || 0;
-      editingH += Number(p.editingHours) || 0;
+      income += Number(p.income) || 0;
+      hours += U.projectHours(p);
     });
-    let other = 0;
-    others.forEach((e) => { other += Number(e.amount) || 0; });
-    let expenses = 0;
-    exps.forEach((e) => { expenses += Number(e.amount) || 0; });
-
-    const total = vhx + other;
-    const hoursTotal = filmingH + editingH;
-
-    let outstanding = 0;
-    (data.projects || []).forEach((p) => {
-      if (p.paymentStatus !== 'paid') outstanding += Number(p.income) || 0;
-    });
-
     const monthsElapsed = calcMonthsElapsed(data, r);
-
-    const bestMonth = findBestMonth(data, r, 'total');
-    const bestVhxMonth = findBestMonth(data, r, 'vhx');
-
     return {
-      vhx,
-      other,
-      total,
-      expenses,
-      net: total - expenses,
+      income,
+      hoursTotal: hours,
       projectCount: projects.length,
-      hoursFilming: filmingH,
-      hoursEditing: editingH,
-      hoursTotal,
-      incomePerHour: hoursTotal > 0 ? vhx / hoursTotal : null,
-      avgMonth: monthsElapsed > 0 ? total / monthsElapsed : null,
-      avgVhxMonth: monthsElapsed > 0 ? vhx / monthsElapsed : null,
+      incomePerHour: hours > 0 ? income / hours : null,
+      avgMonth: monthsElapsed > 0 ? income / monthsElapsed : null,
       monthsElapsed,
-      outstanding,
-      bestMonth,
-      bestVhxMonth,
-      hasData: total !== 0 || expenses !== 0 || projects.length > 0 || others.length > 0 || exps.length > 0
+      bestMonth: findBestMonth(data, r),
+      hasData: projects.length > 0
     };
   }
 
@@ -93,7 +63,6 @@
       startYM = b.min.slice(0, 7);
     }
     const parts = startYM.split('-').map(Number);
-    const sy = parts[0], sm = parts[1];
     let endY = curY, endM = curM;
     if (r.end) {
       const rp = r.end.slice(0, 7).split('-').map(Number);
@@ -102,147 +71,91 @@
         endM = rp[1];
       }
     }
-    return Math.max(1, (endY - sy) * 12 + (endM - sm) + 1);
-  }
-
-  function allMonthsBetween(startISO, endISO) {
-    const keys = [];
-    const [sy, sm] = startISO.slice(0, 7).split('-').map(Number);
-    const [ey, em] = endISO.slice(0, 7).split('-').map(Number);
-    for (let y = sy; y <= ey; y++) {
-      const mStart = y === sy ? sm : 1;
-      const mEnd = y === ey ? em : 12;
-      for (let m = mStart; m <= mEnd; m++) keys.push(y + '-' + pad2(m));
-    }
-    return keys;
+    return Math.max(1, (endY - parts[0]) * 12 + (endM - parts[1]) + 1);
   }
 
   function dataBounds(data) {
     let min = null, max = null;
-    const scan = (iso) => {
-      if (!iso) return;
-      if (!min || iso < min) min = iso;
-      if (!max || iso > max) max = iso;
-    };
-    (data.projects || []).forEach((p) => scan(p.date));
-    (data.otherIncome || []).forEach((e) => scan(e.date));
-    (data.expenses || []).forEach((e) => scan(e.date));
-    return { min, max };
-  }
-
-  function findBestMonth(data, r, kind) {
-    let months;
-    if (r.start) {
-      months = monthBuckets(data, Number(r.year)).filter((b) => inRange(b.key + '-01', r));
-    } else {
-      const bounds = dataBounds(data);
-      if (!bounds.min) return null;
-      const todayISOStr = U.todayISO();
-      months = flatMonths(data, bounds.min, todayISOStr > bounds.max ? todayISOStr : bounds.max);
-    }
-    let best = null;
-    months.forEach((b) => {
-      const val = kind === 'vhx' ? b.vhx : b.total;
-      if (val > 0 && (!best || val > best.value)) {
-        best = { key: b.key, value: val, vhx: b.vhx, other: b.other };
-      }
+    (data.projects || []).forEach((p) => {
+      if (!p.date) return;
+      if (!min || p.date < min) min = p.date;
+      if (!max || p.date > max) max = p.date;
     });
-    if (!best) return null;
-    const [y, m] = best.key.split('-').map(Number);
-    best.label = U.MONTHS_SHORT[m - 1] + ' ' + y;
-    best.vhxDominant = best.vhx >= best.other;
-    return best;
+    return { min, max };
   }
 
   function monthBuckets(data, year) {
     const buckets = [];
     for (let m = 0; m < 12; m++) {
-      buckets.push({
-        key: year + '-' + pad2(m + 1),
-        label: U.MONTHS_SHORT[m],
-        vhx: 0,
-        other: 0,
-        expenses: 0,
-        total: 0,
-        net: 0,
-        count: 0
-      });
+      buckets.push({ key: year + '-' + pad2(m + 1), label: U.MONTHS_SHORT[m], income: 0, count: 0 });
     }
     const byKey = {};
     buckets.forEach((b) => { byKey[b.key] = b; });
     (data.projects || []).forEach((p) => {
       const b = byKey[U.monthKey(p.date)];
       if (b) {
-        b.vhx += Number(p.income) || 0;
+        b.income += Number(p.income) || 0;
         b.count++;
       }
-    });
-    (data.otherIncome || []).forEach((e) => {
-      const b = byKey[U.monthKey(e.date)];
-      if (b) b.other += Number(e.amount) || 0;
-    });
-    (data.expenses || []).forEach((e) => {
-      const b = byKey[U.monthKey(e.date)];
-      if (b) b.expenses += Number(e.amount) || 0;
-    });
-    buckets.forEach((b) => {
-      b.total = b.vhx + b.other;
-      b.net = b.total - b.expenses;
     });
     return buckets;
   }
 
   function flatMonths(data, minISO, maxISO) {
-    const keys = allMonthsBetween(minISO.slice(0, 7), maxISO.slice(0, 7));
+    const keys = [];
+    const [sy, sm] = minISO.slice(0, 7).split('-').map(Number);
+    const [ey, em] = maxISO.slice(0, 7).split('-').map(Number);
+    for (let y = sy; y <= ey; y++) {
+      for (let m = (y === sy ? sm : 1); m <= (y === ey ? em : 12); m++) keys.push(y + '-' + pad2(m));
+    }
     const byKey = {};
     const list = keys.map((k) => {
       const [y, m] = k.split('-').map(Number);
-      const b = { key: k, label: U.MONTHS_SHORT[m - 1], vhx: 0, other: 0, expenses: 0, total: 0, net: 0, count: 0 };
+      const b = { key: k, label: U.MONTHS_SHORT[m - 1], income: 0, count: 0 };
       byKey[k] = b;
       return b;
     });
     (data.projects || []).forEach((p) => {
       const b = byKey[U.monthKey(p.date)];
-      if (b) { b.vhx += Number(p.income) || 0; b.count++; }
-    });
-    (data.otherIncome || []).forEach((e) => {
-      const b = byKey[U.monthKey(e.date)];
-      if (b) b.other += Number(e.amount) || 0;
-    });
-    (data.expenses || []).forEach((e) => {
-      const b = byKey[U.monthKey(e.date)];
-      if (b) b.expenses += Number(e.amount) || 0;
-    });
-    list.forEach((b) => {
-      b.total = b.vhx + b.other;
-      b.net = b.total - b.expenses;
+      if (b) {
+        b.income += Number(p.income) || 0;
+        b.count++;
+      }
     });
     return list;
   }
 
+  function findBestMonth(data, r) {
+    let months;
+    if (r.start) {
+      months = monthBuckets(data, Number(r.year != null ? r.year : r.start.slice(0, 4))).filter((b) => inRange(b.key + '-01', r));
+    } else {
+      const bounds = dataBounds(data);
+      if (!bounds.min) return null;
+      const today = U.todayISO();
+      months = flatMonths(data, bounds.min, today > bounds.max ? today : bounds.max);
+    }
+    let best = null;
+    months.forEach((b) => {
+      if (b.income > 0 && (!best || b.income > best.value)) {
+        best = { key: b.key, value: b.income };
+      }
+    });
+    if (!best) return null;
+    const [y, m] = best.key.split('-').map(Number);
+    best.label = U.MONTHS_SHORT[m - 1] + ' ' + y;
+    return best;
+  }
+
   function yearlyBreakdown(data) {
     const years = new Map();
-    const ensure = (y) => {
-      if (!years.has(y)) years.set(y, { year: y, vhx: 0, other: 0, expenses: 0, total: 0, net: 0 });
-      return years.get(y);
-    };
     (data.projects || []).forEach((p) => {
       const y = U.yearKey(p.date);
-      if (y) ensure(y).vhx += Number(p.income) || 0;
-    });
-    (data.otherIncome || []).forEach((e) => {
-      const y = U.yearKey(e.date);
-      if (y) ensure(y).other += Number(e.amount) || 0;
-    });
-    (data.expenses || []).forEach((e) => {
-      const y = U.yearKey(e.date);
-      if (y) ensure(y).expenses += Number(e.amount) || 0;
+      if (!y) return;
+      if (!years.has(y)) years.set(y, { year: y, income: 0 });
+      years.get(y).income += Number(p.income) || 0;
     });
     const list = Array.from(years.values());
-    list.forEach((r) => {
-      r.total = r.vhx + r.other;
-      r.net = r.total - r.expenses;
-    });
     list.sort((a, b) => a.year - b.year);
     return list;
   }
@@ -255,43 +168,15 @@
       if (U.yearKey(p.date) === year) current += Number(p.income) || 0;
     });
     const pct = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
-    const rawPct = target > 0 ? (current / target) * 100 : 0;
     return {
       target,
       current,
       pct,
-      rawPct,
+      rawPct: target > 0 ? (current / target) * 100 : 0,
       remaining: Math.max(0, target - current),
       exceeded: target > 0 && current >= target,
       year
     };
-  }
-
-  function clientStats(projects, clientId) {
-    const list = (projects || []).filter((p) => p.clientId === clientId);
-    let total = 0, hours = 0;
-    list.forEach((p) => {
-      total += Number(p.income) || 0;
-      hours += (Number(p.filmingHours) || 0) + (Number(p.editingHours) || 0);
-    });
-    return {
-      count: list.length,
-      total,
-      avg: list.length ? total / list.length : null,
-      hours,
-      incomePerHour: hours > 0 ? total / hours : null,
-      projects: list
-    };
-  }
-
-  function statusCounts(projects) {
-    const counts = {};
-    U.PROJECT_STATUS.forEach((s) => { counts[s.id] = 0; });
-    (projects || []).forEach((p) => {
-      if (counts[p.status] != null) counts[p.status]++;
-    });
-    counts.all = (projects || []).length;
-    return counts;
   }
 
   window.Stats = {
@@ -302,8 +187,6 @@
     flatMonths,
     yearlyBreakdown,
     goalInfo,
-    clientStats,
-    statusCounts,
     dataBounds
   };
 })();

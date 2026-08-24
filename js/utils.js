@@ -153,6 +153,14 @@
     qs(sel, root) { return (root || document).querySelector(sel); },
     qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); },
     statusInfo(map, id) { return map.find((s) => s.id === id) || map[0]; },
+    projectHours(p) {
+      if (!p) return 0;
+      if (p.hours != null && p.hours !== '') {
+        const h = Number(p.hours);
+        return isFinite(h) && h > 0 ? h : 0;
+      }
+      return (Number(p.filmingHours) || 0) + (Number(p.editingHours) || 0);
+    },
     alpha(color, a) {
       const hex = color.replace('#', '');
       const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
