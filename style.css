@@ -2895,3 +2895,20 @@ button.set-row:hover {
 /* Tijdstip-optioneel rij */
 [data-time-row] .check-row { margin-bottom: 2px; }
 [data-time-row] [data-time-input] { max-width: 160px; }
+
+/* Tikbare tegels + sheet-lijsten */
+.stat-card.tappable, .hero-card.tappable { cursor: pointer; }
+.stat-card.tappable:active { transform: scale(0.97); }
+.hero-card.tappable:active { transform: scale(0.99); }
+.sheet-sub { font-size: 0.85rem; color: rgba(226, 240, 228, 0.55); margin: 2px 0 12px; }
+.out-actions { display: flex; align-items: center; gap: 6px; }
+.sheet-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 14px;
+  margin-top: 6px;
+  border-top: 1px dashed var(--line-strong);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--gold-bright);
+}

@@ -25,20 +25,29 @@
       '</div>';
 
     const hero =
-      '<div class="card hero-card static">' +
+      heroCard;
+
+    const miniDefs = [
+      { lb: 'Uren', val: U.fmtNum(sum.hoursTotal, 1) },
+      { lb: 'Per uur', val: sum.incomePerHour != null ? U.fmtMoney(sum.incomePerHour) : '\u2013' },
+      { lb: 'Gem. per maand', val: sum.avgMonth != null ? U.fmtMoney(sum.avgMonth) : '\u2013' },
+      {
+        lb: 'Te ontvangen',
+        val: sum.outstanding > 0 ? U.fmtMoney(sum.outstanding) : '\u2013',
+        tap: sum.outstanding > 0 ? 'open-outstanding' : null
+      }
+    ];
+    const minis = miniDefs.map((m) =>
+      '<div class="stat-card' + (m.tap ? ' tappable' : '') + '"' + (m.tap ? ' data-action="' + m.tap + '" role="button" tabindex="0"' : '') + '>' +
+      '<span class="stat-label">' + m.lb + '</span><span class="stat-value">' + U.esc(String(m.val)) + '</span></div>'
+    ).join('');
+
+    const heroCard =
+      '<div class="card hero-card static tappable" data-action="open-income" role="button" tabindex="0">' +
       '<div class="card-label">Totale inkomsten</div>' +
       '<div class="big-number">' + U.esc(U.fmtMoney(sum.income)) + '</div>' +
       '<div class="hero-meta">' + U.esc(r.label) + '</div>' +
       '</div>';
-
-    const minis = [
-      ['Uren', U.fmtNum(sum.hoursTotal, 1)],
-      ['Per uur', sum.incomePerHour != null ? U.fmtMoney(sum.incomePerHour) : '\u2013'],
-      ['Gem. per maand', sum.avgMonth != null ? U.fmtMoney(sum.avgMonth) : '\u2013'],
-      ['Te ontvangen', sum.outstanding > 0 ? U.fmtMoney(sum.outstanding) : '\u2013']
-    ].map(([lb, val]) =>
-      '<div class="stat-card"><span class="stat-label">' + lb + '</span><span class="stat-value">' + U.esc(String(val)) + '</span></div>'
-    ).join('');
 
     let goalInner;
     if (!goal.target) {
@@ -154,6 +163,89 @@
   }
   window.projRow = projRow;
 
+  function openOutstandingSheet(refresh) {
+    const sh = Sheet.open({ title: 'Te ontvangen' });
+
+    function row(p) {
+      return (
+        '<div class="up-row card">' +
+        '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
+        '<span class="row-sub">' +
+        U.esc(
+          [
+            p.date ? U.fmtDate(p.date) : 'Geen datum',
+            p.date && p.time ? p.time : '',
+            p.client || ''
+          ].filter(Boolean).join(' \u00B7 ') || '\u2013'
+        ) +
+        '</span></span>' +
+        '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span>' +
+        '<span class="out-actions">' +
+        '<button type="button" class="icon-btn" data-detail="' + U.esc(p.id) + '" aria-label="Details">' + Icons.chevronRight + '</button>' +
+        '<button type="button" class="btn btn-gold btn-sm" data-pay="' + U.esc(p.id) + '">' + Icons.check + 'Betaald</button>' +
+        '</span></span>' +
+        '</div>'
+      );
+    }
+
+    function draw() {
+      const list = App.state.data.projects
+        .filter((p) => !p.concept && p.status !== 'paid')
+        .sort((a, b) => (a.date || '9999-12-31').localeCompare(b.date || '9999-12-31'));
+      sh.body.innerHTML = list.length
+        ? '<p class="sheet-sub">Oudste eerst \u2014 tik op Betaald zodra het geld binnen is.</p>' +
+          '<div class="stack-list">' + list.map(row).join('') + '</div>'
+        : '<div class="empty slim"><h3>Alles betaald</h3><p>Er staan geen openstaande betalingen meer open.</p></div>';
+
+      U.qsa('[data-pay]', sh.body).forEach((b) =>
+        b.addEventListener('click', async () => {
+          await App.patchRecord('projects', b.getAttribute('data-pay'), { status: 'paid' });
+          toast('Betaald gemarkeerd');
+          draw();
+          if (refresh) refresh();
+        })
+      );
+      U.qsa('[data-detail]', sh.body).forEach((b) =>
+        b.addEventListener('click', () => Projects.openDetail(b.getAttribute('data-detail')))
+      );
+    }
+
+    draw();
+  }
+
+  function openIncomeSheet(range) {
+    const sh = Sheet.open({ title: 'Inkomsten \u00B7 ' + range.label });
+    const items = App.state.data.projects
+      .filter((p) => !p.concept && Number(p.income) > 0 && Stats.inRange(p.date, range))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const total = items.reduce((s, p) => s + (Number(p.income) || 0), 0);
+
+    sh.body.innerHTML = items.length
+      ? '<p class="sheet-sub">Periode: ' + U.esc(range.label) + ' \u2014 ' + items.length + ' opdracht' + (items.length === 1 ? '' : 'en') + '.</p>' +
+        '<div class="stack-list">' +
+        items.map((p) =>
+          '<div class="up-row card" data-proj="' + U.esc(p.id) + '" role="button" tabindex="0">' +
+          '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
+          '<span class="row-sub">' +
+          U.esc(
+            [
+              p.date ? U.fmtDate(p.date) : 'Geen datum',
+              p.client || ''
+            ].filter(Boolean).join(' \u00B7 ') || '\u2013'
+          ) +
+          '</span></span>' +
+          '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span></span>' +
+          '</div>'
+        ).join('') +
+        '</div>' +
+        '<div class="sheet-total"><span>Totaal</span><span>' + U.esc(U.fmtMoney(total)) + '</span></div>'
+      : '<div class="empty slim"><h3>Geen inkomsten</h3><p>Er zijn in deze periode nog geen inkomsten geregistreerd.</p></div>';
+
+    U.qsa('[data-proj]', sh.body).forEach((b) =>
+      b.addEventListener('click', () => Projects.openDetail(b.getAttribute('data-proj')))
+    );
+  }
+
   function conceptRow(p) {
     const st = U.statusInfo(U.PROJECT_STATUS, p.status);
     return (
@@ -192,6 +284,10 @@
     if (ap) ap.addEventListener('click', () => Projects.openForm(null));
     const gc = U.qs('[data-action=go-calendar]', root);
     if (gc) gc.addEventListener('click', () => App.go('calendar'));
+    const ot = U.qs('[data-action=open-outstanding]', root);
+    if (ot) ot.addEventListener('click', () => openOutstandingSheet(() => render(root)));
+    const hi = U.qs('[data-action=open-income]', root);
+    if (hi) hi.addEventListener('click', () => openIncomeSheet(r));
   }
 
   window.Views = window.Views || {};
