@@ -2918,4 +2918,5 @@ button.set-row:hover {
 .form .chip-row.seg { display: inline-flex; width: fit-content; align-self: flex-start; max-width: 100%; }
 
 .set-row:disabled { opacity: 0.55; pointer-events: none; }
-
+/* Face ID unlock button on lockscreen */
+.lock-bio svg { width: 18px; height: 18px; margin-right: 8px; flex: none; }
