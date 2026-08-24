@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#142d18">
+  <meta name="description" content="VHXmedia persoonlijk dashboard">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VHXmedia">
+  <title>VHXmedia</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <div id="splash" aria-hidden="true">
+    <div class="splash-mark">
+      <div class="splash-logo"><span class="logo-vhx">VHX</span><span class="logo-media">media</span></div>
+      <div class="splash-bar"><span></span></div>
+    </div>
+  </div>
+
+  <div id="lock-root"></div>
+  <div id="onboarding-root"></div>
+
+  <div id="app" class="app hidden" aria-hidden="true">
+    <aside class="sidebar" id="sidebar" aria-label="Hoofdnavigatie">
+      <div class="sidebar-brand">
+        <div class="wordmark"><span class="logo-vhx">VHX</span><span class="logo-media">media</span></div>
+        <button class="icon-btn sidebar-add" id="sidebar-add" aria-label="Snel toevoegen" data-icon="plus"></button>
+      </div>
+      <nav class="side-nav" id="side-nav"></nav>
+      <div class="sidebar-foot">
+        <div class="offline-pill hidden" id="offline-pill-desktop"><span data-icon="wifi-off"></span>Offline</div>
+        <div class="side-version">v<span id="version-side">1.0.0</span></div>
+      </div>
+    </aside>
+
+    <div class="main-col">
+      <header class="topbar" id="topbar">
+        <div class="topbar-left">
+          <div class="wordmark topbar-brand"><span class="logo-vhx">VHX</span><span class="logo-media">media</span></div>
+          <h1 class="topbar-title" id="topbar-title"></h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="offline-pill hidden" id="offline-pill"><span data-icon="wifi-off"></span><span>Offline</span></div>
+          <button class="icon-btn" id="btn-search" aria-label="Zoeken" data-icon="search"></button>
+          <button class="icon-btn" id="btn-lock" aria-label="Vergrendel app" data-icon="lock"></button>
+        </div>
+      </header>
+      <main class="view" id="view" tabindex="-1"></main>
+    </div>
+
+    <nav class="bottomnav" id="bottomnav" aria-label="Navigatie"></nav>
+    <button class="fab" id="fab" aria-label="Snel toevoegen" data-icon="plus"></button>
+  </div>
+
+  <div id="sheet-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <div id="search-root"></div>
+
+  <script src="./js/icons.js"></script>
+  <script src="./js/db.js"></script>
+  <script src="./js/utils.js"></script>
+  <script src="./js/stats.js"></script>
+  <script src="./js/charts.js"></script>
+  <script src="./js/auth.js"></script>
+  <script src="./js/dashboard.js"></script>
+  <script src="./js/finance.js"></script>
+  <script src="./js/projects.js"></script>
+  <script src="./js/clients.js"></script>
+  <script src="./js/calendar.js"></script>
+  <script src="./js/more.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
