@@ -89,12 +89,6 @@
         const nw = reg.installing || reg.waiting;
         if (nw) found = nw;
       });
-      try {
-        await navigator.serviceWorker.register(
-          './service-worker.js?v=' + Date.now(),
-          { updateViaCache: 'none' }
-        );
-      } catch (e2) {}
       await reg.update();
       await new Promise((resolve) => {
         let waited = 0;
