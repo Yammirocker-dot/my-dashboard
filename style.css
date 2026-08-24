@@ -2915,7 +2915,7 @@ button.set-row:hover {
 
 /* Uren-invoer: moduskiezer */
 [data-hours-direct] { max-width: 160px; }
-.form .chip-row.seg { display: inline-flex; max-width: 100%; }
+.form .chip-row.seg { display: inline-flex; width: fit-content; align-self: flex-start; max-width: 100%; }
 
 .set-row:disabled { opacity: 0.55; pointer-events: none; }
 
