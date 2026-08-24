@@ -19,7 +19,7 @@
 
     const chips =
       '<div class="chip-row seg" role="tablist" aria-label="Periode">' +
-      [['month', 'Deze maand'], ['year', 'Dit jaar'], ['all', 'Alles']].map(([id, lb]) =>
+      [['year', 'Dit jaar'], ['month', 'Deze maand'], ['all', 'Alles']].map(([id, lb]) =>
         '<button type="button" class="chip' + (S.dashPeriod === id ? ' active' : '') + '" data-period="' + id + '" role="tab" aria-selected="' + (S.dashPeriod === id) + '">' + lb + '</button>'
       ).join('') +
       '</div>';
@@ -93,6 +93,14 @@
       }).join('');
     }
 
+    const concepts = S.data.projects
+      .filter((p) => p.concept)
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    const conceptsHTML = concepts.length
+      ? '<div class="section-row"><h3 class="section-title">Op te volgen <span class="muted">(' + concepts.length + ')</span></h3></div>' +
+        '<div class="stack-list">' + concepts.map(conceptRow).join('') + '</div>'
+      : '';
+
     root.innerHTML =
       '<section class="dash fade-in">' +
       '<header class="view-head"><div>' +
@@ -109,6 +117,7 @@
       '</div>' +
       '<div class="section-row"><h3 class="section-title">Komende opdrachten</h3><button type="button" class="link-btn" data-nav="calendar">Kalender</button></div>' +
       '<div class="stack-list">' + upHTML + '</div>' +
+      conceptsHTML +
       '</section>';
 
     requestAnimationFrame(() => {
@@ -131,18 +140,37 @@
       '<span class="row-sub">' +
       U.esc(
         [
-          U.fmtDate(p.date),
+          p.date ? U.fmtDate(p.date) : 'Geen datum',
           p.client || '',
           U.projectHours(p) > 0 ? U.fmtNum(U.projectHours(p), 1) + ' u' : ''
         ].filter(Boolean).join(' \u00B7 ')
       ) +
       '</span></span>' +
-      '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span>' +
+      '<span class="row-side"><span class="row-money">' + U.esc(p.concept ? U.fmtBudget(p) : U.fmtMoney(p.income)) + '</span>' +
       '<span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span></span>' +
       '</button>'
     );
   }
   window.projRow = projRow;
+
+  function conceptRow(p) {
+    const st = U.statusInfo(U.PROJECT_STATUS, p.status);
+    return (
+      '<button type="button" class="up-row card no-date" data-proj="' + U.esc(p.id) + '">' +
+      '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
+      '<span class="row-sub">' +
+      U.esc(
+        [
+          p.client || '',
+          U.projectHours(p) > 0 ? U.fmtNum(U.projectHours(p), 1) + ' u' : ''
+        ].filter(Boolean).join(' \u00B7 ') || 'Nog zonder details'
+      ) +
+      '</span></span>' +
+      '<span class="row-side"><span class="row-money">' + U.esc(U.fmtBudget(p)) + '</span>' +
+      '<span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span></span>' +
+      '</button>'
+    );
+  }
 
   function bind(root) {
     U.qsa('[data-period]', root).forEach((b) =>

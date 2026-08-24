@@ -128,7 +128,7 @@
     return (
       '<button type="button" class="up-row card" data-proj="' + U.esc(p.id) + '">' +
       '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
-      '<span class="row-sub">' + U.esc(U.fmtDate(p.date)) + '</span></span>' +
+      '<span class="row-sub">' + U.esc(p.date ? U.fmtDate(p.date) : 'Geen datum') + '</span></span>' +
       '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span>' +
       '<span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span></span>' +
       '</button>'

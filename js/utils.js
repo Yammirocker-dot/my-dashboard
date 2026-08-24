@@ -94,6 +94,16 @@
     return fmtNum(v, 1) + ' u';
   }
 
+  function fmtBudget(p) {
+    const lo = p && p.budgetMin != null && p.budgetMin !== '' ? Number(p.budgetMin) : null;
+    const hi = p && p.budgetMax != null && p.budgetMax !== '' ? Number(p.budgetMax) : null;
+    const f = (n) => '\u20AC ' + new Intl.NumberFormat('nl-BE', { maximumFractionDigits: 0 }).format(n);
+    if (lo != null && hi != null && hi > lo) return f(lo) + ' \u2013 ' + f(hi);
+    if (lo != null) return f(lo);
+    if (hi != null) return f(hi);
+    return '\u2013';
+  }
+
   function parseNum(v) {
     if (typeof v === 'number') return isFinite(v) ? v : NaN;
     if (typeof v !== 'string') return NaN;
@@ -148,6 +158,7 @@
     esc, uid, pad2,
     dateToISO, todayISO, parseISO, isValidISO, monthKey, yearKey,
     fmtMoney, fmtCompact, fmtPct, fmtNum, fmtHours, parseNum,
+    fmtBudget,
     fmtDate, fmtDateShort, fmtDateLong, monthTitle, greeting,
     debounce,
     qs(sel, root) { return (root || document).querySelector(sel); },

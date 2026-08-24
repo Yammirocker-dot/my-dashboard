@@ -2870,3 +2870,13 @@ button.set-row:hover {
 .meta-row.sub { margin-top: -4px; }
 .meta-row.sub .meta-label,
 .meta-row.sub .meta-value { opacity: 0.7; font-weight: 500; }
+
+/* Concept-modus */
+.form.is-concept [data-field="date"],
+.form.is-concept [data-field="income"] { display: none; }
+.form:not(.is-concept) [data-field="budgetMin"],
+.form:not(.is-concept) [data-field="budgetMax"] { display: none; }
+.check-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.check-row input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); flex: none; }
+.up-row.no-date .up-date { display: none; }
+.up-row.no-date .row-main { padding-left: 2px; }

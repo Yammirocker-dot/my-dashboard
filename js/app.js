@@ -1,12 +1,12 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.1.4';
+  const VERSION = '1.2.0';
 
   const state = {
     route: 'start',
     data: { projects: [] },
     settings: { goal: 0, userName: 'Liam', autoLock: 5, onboarded: false },
-    dashPeriod: 'month',
+    dashPeriod: 'year',
     calCursor: null,
     calSelected: null,
     calFilter: '',

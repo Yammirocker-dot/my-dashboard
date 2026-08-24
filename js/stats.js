@@ -23,6 +23,10 @@
     };
   }
 
+  function realProjects(data) {
+    return (data.projects || []).filter((p) => !p.concept);
+  }
+
   function inRange(iso, r) {
     if (!iso) return false;
     if (r.start && iso < r.start) return false;
@@ -31,7 +35,7 @@
   }
 
   function summarize(data, r) {
-    const projects = (data.projects || []).filter((p) => inRange(p.date, r));
+    const projects = realProjects(data).filter((p) => inRange(p.date, r));
     let income = 0, hours = 0;
     projects.forEach((p) => {
       income += Number(p.income) || 0;
@@ -40,7 +44,7 @@
     const monthsElapsed = calcMonthsElapsed(data, r);
 
     let outstanding = 0;
-    (data.projects || []).forEach((p) => {
+    realProjects(data).forEach((p) => {
       if (p.status !== 'paid') outstanding += Number(p.income) || 0;
     });
 
@@ -83,7 +87,7 @@
 
   function dataBounds(data) {
     let min = null, max = null;
-    (data.projects || []).forEach((p) => {
+    realProjects(data).forEach((p) => {
       if (!p.date) return;
       if (!min || p.date < min) min = p.date;
       if (!max || p.date > max) max = p.date;
@@ -98,7 +102,7 @@
     }
     const byKey = {};
     buckets.forEach((b) => { byKey[b.key] = b; });
-    (data.projects || []).forEach((p) => {
+    realProjects(data).forEach((p) => {
       const b = byKey[U.monthKey(p.date)];
       if (b) {
         b.income += Number(p.income) || 0;
@@ -122,7 +126,7 @@
       byKey[k] = b;
       return b;
     });
-    (data.projects || []).forEach((p) => {
+    realProjects(data).forEach((p) => {
       const b = byKey[U.monthKey(p.date)];
       if (b) {
         b.income += Number(p.income) || 0;
@@ -156,7 +160,7 @@
 
   function yearlyBreakdown(data) {
     const years = new Map();
-    (data.projects || []).forEach((p) => {
+    realProjects(data).forEach((p) => {
       const y = U.yearKey(p.date);
       if (!y) return;
       if (!years.has(y)) years.set(y, { year: y, income: 0 });
@@ -171,7 +175,7 @@
     const target = Number(settings.goal) || 0;
     const year = String(new Date().getFullYear());
     let current = 0;
-    (projects || []).forEach((p) => {
+    (projects || []).filter((p) => !p.concept).forEach((p) => {
       if (U.yearKey(p.date) === year) current += Number(p.income) || 0;
     });
     const pct = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;

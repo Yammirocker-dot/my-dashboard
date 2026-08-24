@@ -4,9 +4,11 @@
   function fields() {
     return [
       { name: 'name', label: 'Naam', type: 'text', required: true, placeholder: 'bijv. Bedrijfsfilm Sheraton' },
-      { name: 'date', label: 'Datum', type: 'date', required: true },
+      { name: 'date', label: 'Datum (optioneel)', type: 'date' },
       { name: 'client', label: 'Klant (optioneel)', type: 'text', placeholder: 'bijv. Sheraton' },
       { name: 'income', label: 'Inkomen (\u20AC)', type: 'number', step: '0.01', min: 0, placeholder: '0,00' },
+      { name: 'budgetMin', label: 'Budget van (\u20AC)', type: 'number', step: '0.01', min: 0, placeholder: '0,00' },
+      { name: 'budgetMax', label: 'Budget tot (\u20AC, optioneel)', type: 'number', step: '0.01', min: 0, placeholder: '0,00' },
       {
         name: 'status', label: 'Status', type: 'select',
         options: U.PROJECT_STATUS.map((s) => ({ value: s.id, label: s.label }))
@@ -21,6 +23,9 @@
       date: p && p.date ? p.date : U.todayISO(),
       client: p ? p.client || '' : '',
       income: p ? String(p.income != null ? p.income : '') : '',
+      budgetMin: p && p.budgetMin != null ? String(p.budgetMin) : '',
+      budgetMax: p && p.budgetMax != null ? String(p.budgetMax) : '',
+      concept: p ? !!p.concept : false,
       status: p && p.status ? p.status : 'planned',
       notes: p ? p.notes || '' : ''
     };
@@ -73,14 +78,24 @@
       '<p class="iv-total">Totaal: <strong data-iv-total>\u2013</strong></p>' +
       '</div>';
 
+    const conceptBlock =
+      '<div class="field check-field">' +
+      '<label class="check-row">' +
+      '<input type="checkbox" data-concept-toggle' + (vals.concept ? ' checked' : '') + '>' +
+      '<span>Concept</span>' +
+      '</label>' +
+      '<p class="form-hint">Nog geen definitieve opdracht: geen datum nodig en je kan een budgetrange opgeven.</p>' +
+      '</div>';
+
     let fieldsHTML = '';
     cfg.forEach((f) => {
       fieldsHTML += Forms.fieldRow(Object.assign({}, f, { value: vals[f.name] }));
+      if (f.name === 'name') fieldsHTML += conceptBlock;
       if (f.name === 'income') fieldsHTML += ivBlock;
     });
 
     sh.body.innerHTML =
-      '<form class="form" novalidate>' +
+      '<form class="form' + (vals.concept ? ' is-concept' : '') + '" novalidate>' +
       fieldsHTML +
       '<div class="form-actions">' +
       '<button type="button" class="btn btn-ghost" data-cancel>Annuleren</button>' +
@@ -119,6 +134,16 @@
     });
     updTotal();
 
+    const conceptToggle = U.qs('[data-concept-toggle]', sh.body);
+    conceptToggle.addEventListener('change', () => {
+      const on = conceptToggle.checked;
+      form.classList.toggle('is-concept', on);
+      if (on) {
+        const sel = form.elements['status'];
+        if (sel && sel.value === 'planned') sel.value = 'idea';
+      }
+    });
+
     U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -129,7 +154,24 @@
       const nowIso = new Date().toISOString();
       const rec = existing ? Object.assign({}, existing) : { id: U.uid(), createdAt: nowIso };
       rec.name = v.name.trim();
-      rec.date = v.date;
+      const isConcept = conceptToggle.checked;
+      rec.concept = isConcept;
+      if (isConcept) {
+        const bmin = v.budgetMin != null ? v.budgetMin : null;
+        const bmax = v.budgetMax != null ? v.budgetMax : null;
+        if (bmin != null && bmax != null && bmax < bmin) {
+          toast('Budget-tot moet gelijk aan of hoger dan budget-van zijn', 'error');
+          return;
+        }
+        rec.date = '';
+        rec.income = 0;
+        rec.budgetMin = bmin;
+        rec.budgetMax = bmax;
+      } else {
+        rec.date = v.date || '';
+        rec.budgetMin = null;
+        rec.budgetMax = null;
+      }
       rec.client = (v.client || '').trim();
       rec.income = v.income != null ? v.income : 0;
       const filledIvs = collectIvs().filter((iv) => iv.from && iv.to);
@@ -173,14 +215,18 @@
       sh.body.innerHTML =
         '<div class="detail">' +
         '<div class="pill-row"><span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span></div>' +
-        '<div class="detail-money">' + U.esc(U.fmtMoney(income)) + '</div>' +
-        '<p class="iph-line">' + (iph != null
-          ? '\u20AC ' + U.esc(U.fmtNum(iph, 2)) + ' per uur \u00B7 ' + U.esc(U.fmtNum(h, 1)) + ' uur'
-          : 'Voer je uren in om je uurtarief te zien.') + '</p>' +
+        '<div class="detail-money">' + U.esc(p.concept ? U.fmtBudget(p) : U.fmtMoney(income)) + '</div>' +
+        '<p class="iph-line">' + (p.concept
+          ? 'Concept \u2013 nog geen definitieve opdracht.'
+          : iph != null
+            ? '\u20AC ' + U.esc(U.fmtNum(iph, 2)) + ' per uur \u00B7 ' + U.esc(U.fmtNum(h, 1)) + ' uur'
+            : 'Voer je uren in om je uurtarief te zien.') + '</p>' +
 
-        '<button type="button" class="btn ' + (p.status === 'paid' ? 'btn-ghost' : 'btn-gold') + ' btn-block paid-toggle" data-toggle-paid>' +
-        Icons.check + (p.status === 'paid' ? 'Terug naar niet-betaald' : 'Markeer als betaald') +
-        '</button>' +
+        (!p.concept
+          ? '<button type="button" class="btn ' + (p.status === 'paid' ? 'btn-ghost' : 'btn-gold') + ' btn-block paid-toggle" data-toggle-paid>' +
+            Icons.check + (p.status === 'paid' ? 'Terug naar niet-betaald' : 'Markeer als betaald') +
+            '</button>'
+          : '') +
 
         '<div class="card detail-card"><div class="chip-row seg scroll">' +
         U.PROJECT_STATUS.map((s) =>
@@ -189,7 +235,10 @@
         '</div></div>' +
 
         '<div class="card detail-card meta-list">' +
-        mrow(Icons.calendar, 'Datum', U.esc(U.fmtDate(p.date))) +
+        (p.date ? mrow(Icons.calendar, 'Datum', U.esc(U.fmtDate(p.date))) : '') +
+        (p.concept && (p.budgetMin != null || p.budgetMax != null)
+          ? mrow(Icons.trendingUp, 'Budget', U.esc(U.fmtBudget(p)))
+          : '') +
         (p.client ? mrow(Icons.user, 'Klant', U.esc(p.client)) : '') +
         mrow(Icons.clock, 'Uren', U.esc(U.fmtNum(h, 1))) +
         ((Array.isArray(p.intervals) && p.intervals.length)
@@ -215,7 +264,8 @@
           draw();
         })
       );
-      U.qs('[data-toggle-paid]', sh.body).addEventListener('click', async () => {
+      const paidBtn = U.qs('[data-toggle-paid]', sh.body);
+      if (paidBtn) paidBtn.addEventListener('click', async () => {
         const cur = build();
         const next = cur && cur.status === 'paid' ? 'delivered' : 'paid';
         await App.patchRecord('projects', id, { status: next });
