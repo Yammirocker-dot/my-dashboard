@@ -38,9 +38,14 @@
   function summarize(data, r) {
     const projects = realProjects(data).filter((p) => inRange(p.date, r));
     let income = 0, hours = 0;
+    let rateIncome = 0, rateHours = 0;
     projects.forEach((p) => {
       income += Number(p.income) || 0;
       hours += U.projectHours(p);
+      if (Number(p.hours) > 0) {
+        rateIncome += Number(p.income) || 0;
+        rateHours += Number(p.hours);
+      }
     });
     const monthsElapsed = calcMonthsElapsed(data, r);
 
@@ -49,15 +54,23 @@
       if (p.status !== 'paid') outstanding += Number(p.income) || 0;
     });
 
+    const now = new Date();
+    const curKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    let monthIncome = 0;
+    realProjects(data).forEach((p) => {
+      if (p.date && U.monthKey(p.date) === curKey) monthIncome += Number(p.income) || 0;
+    });
+
     return {
       income,
       hoursTotal: hours,
       projectCount: projects.length,
-      incomePerHour: hours > 0 ? income / hours : null,
+      incomePerHour: rateHours > 0 ? rateIncome / rateHours : null,
       avgMonth: monthsElapsed > 0 ? income / monthsElapsed : null,
       monthsElapsed,
       bestMonth: findBestMonth(data, r),
       outstanding,
+      monthIncome,
       hasData: projects.length > 0
     };
   }

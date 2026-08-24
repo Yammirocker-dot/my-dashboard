@@ -19,7 +19,7 @@
 
     const chips =
       '<div class="chip-row seg" role="tablist" aria-label="Periode">' +
-      [['year', 'Dit jaar'], ['month', 'Deze maand'], ['all', 'Alles']].map(([id, lb]) =>
+      [['year', 'Dit jaar'], ['all', 'Alles']].map(([id, lb]) =>
         '<button type="button" class="chip' + (S.dashPeriod === id ? ' active' : '') + '" data-period="' + id + '" role="tab" aria-selected="' + (S.dashPeriod === id) + '">' + lb + '</button>'
       ).join('') +
       '</div>';
@@ -34,7 +34,7 @@
     const miniDefs = [
       { lb: 'Uren', val: U.fmtNum(sum.hoursTotal, 1) },
       { lb: 'Per uur', val: sum.incomePerHour != null ? U.fmtMoney(sum.incomePerHour) : '\u2013' },
-      { lb: 'Gem. per maand', val: sum.avgMonth != null ? U.fmtMoney(sum.avgMonth) : '\u2013' },
+      { lb: 'Deze maand', val: sum.monthIncome > 0 ? U.fmtMoney(sum.monthIncome) : '\u2013' },
       {
         lb: 'Te ontvangen',
         val: sum.outstanding > 0 ? U.fmtMoney(sum.outstanding) : '\u2013',
