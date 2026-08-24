@@ -25,7 +25,11 @@
       '</div>';
 
     const hero =
-      heroCard;
+      '<div class="card hero-card static tappable" data-action="open-income" role="button" tabindex="0">' +
+      '<div class="card-label">Totale inkomsten</div>' +
+      '<div class="big-number">' + U.esc(U.fmtMoney(sum.income)) + '</div>' +
+      '<div class="hero-meta">' + U.esc(r.label) + '</div>' +
+      '</div>';
 
     const miniDefs = [
       { lb: 'Uren', val: U.fmtNum(sum.hoursTotal, 1) },
@@ -41,13 +45,6 @@
       '<div class="stat-card' + (m.tap ? ' tappable' : '') + '"' + (m.tap ? ' data-action="' + m.tap + '" role="button" tabindex="0"' : '') + '>' +
       '<span class="stat-label">' + m.lb + '</span><span class="stat-value">' + U.esc(String(m.val)) + '</span></div>'
     ).join('');
-
-    const heroCard =
-      '<div class="card hero-card static tappable" data-action="open-income" role="button" tabindex="0">' +
-      '<div class="card-label">Totale inkomsten</div>' +
-      '<div class="big-number">' + U.esc(U.fmtMoney(sum.income)) + '</div>' +
-      '<div class="hero-meta">' + U.esc(r.label) + '</div>' +
-      '</div>';
 
     let goalInner;
     if (!goal.target) {

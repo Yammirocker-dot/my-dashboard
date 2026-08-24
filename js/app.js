@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.3.0';
+  const VERSION = '1.3.1';
 
   const state = {
     route: 'start',
