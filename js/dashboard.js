@@ -284,7 +284,7 @@
     const ot = U.qs('[data-action=open-outstanding]', root);
     if (ot) ot.addEventListener('click', () => openOutstandingSheet(() => render(root)));
     const hi = U.qs('[data-action=open-income]', root);
-    if (hi) hi.addEventListener('click', () => openIncomeSheet(r));
+    if (hi) hi.addEventListener('click', () => openIncomeSheet(dashRange()));
   }
 
   window.Views = window.Views || {};
