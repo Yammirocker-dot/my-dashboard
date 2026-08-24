@@ -28,6 +28,7 @@
   }
 
   function inRange(iso, r) {
+    if (r && !r.start && !r.end) return true;
     if (!iso) return false;
     if (r.start && iso < r.start) return false;
     if (r.end && iso > r.end) return false;
