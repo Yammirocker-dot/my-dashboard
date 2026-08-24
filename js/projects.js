@@ -63,20 +63,36 @@
     const existingIvs = (existing && Array.isArray(existing.intervals) && existing.intervals.length)
       ? existing.intervals
       : [{}];
-    const legacyHours = existing &&
-      !(Array.isArray(existing.intervals) && existing.intervals.length) &&
-      Number(existing.hours) > 0;
+    const hasIvRows = existing && Array.isArray(existing.intervals) &&
+      existing.intervals.some((iv) => iv.from && iv.to);
+    const directHoursRaw = (() => {
+      if (!existing) return '';
+      if (existing.hours != null && existing.hours !== '') return String(existing.hours);
+      const f = Number(existing.filmingHours) || 0;
+      const e = Number(existing.editingHours) || 0;
+      return (f + e) > 0 ? String(f + e) : '';
+    })();
+    let hoursMode = 'interval';
+    if (existing) {
+      if (existing.hoursMode === 'direct') hoursMode = 'direct';
+      else if (!hasIvRows && directHoursRaw !== '') hoursMode = 'direct';
+    }
 
-    const ivBlock =
+    const hoursBlock =
       '<div class="field">' +
-      '<label class="field-label">Gewerkt van \u2013 tot</label>' +
-      (legacyHours
-        ? '<p class="form-hint">Opgeslagen totaal: ' + U.esc(U.fmtNum(Number(existing.hours), 1)) +
-          ' u zonder tijden. Voeg tijden toe om dit te vervangen.</p>'
-        : '') +
+      '<label class="field-label">Uren</label>' +
+      '<div class="chip-row seg" role="tablist" aria-label="Manier van uren invoeren">' +
+      '<button type="button" class="chip sm' + (hoursMode === 'interval' ? ' active' : '') + '" data-hours-mode="interval">Van \u2013 tot</button>' +
+      '<button type="button" class="chip sm' + (hoursMode === 'direct' ? ' active' : '') + '" data-hours-mode="direct">Rechtstreeks</button>' +
+      '</div>' +
+      '<div data-mode-interval' + (hoursMode === 'interval' ? '' : ' style="display:none"') + '>' +
       '<div id="iv-list">' + existingIvs.map(ivRowHTML).join('') + '</div>' +
       '<button type="button" class="btn btn-ghost btn-sm" data-add-interval>' + Icons.plus + 'Interval toevoegen</button>' +
-      '<p class="iv-total">Totaal: <strong data-iv-total>\u2013</strong></p>' +
+      '</div>' +
+      '<input type="number" step="0.25" min="0" inputmode="decimal" class="input" data-hours-direct' +
+      ' placeholder="bv. 3,5" value="' + U.esc(hoursMode === 'direct' ? directHoursRaw : '') + '"' +
+      (hoursMode === 'direct' ? '' : ' style="display:none"') + '>' +
+      '<p class="iv-total"' + (hoursMode === 'interval' ? '' : ' style="display:none"') + '>Totaal: <strong data-iv-total>\u2013</strong></p>' +
       '</div>';
 
     const conceptBlock =
@@ -102,7 +118,7 @@
       fieldsHTML += Forms.fieldRow(Object.assign({}, f, { value: vals[f.name] }));
       if (f.name === 'name') fieldsHTML += conceptBlock;
       if (f.name === 'date') fieldsHTML += timeBlock;
-      if (f.name === 'income') fieldsHTML += ivBlock;
+      if (f.name === 'income') fieldsHTML += hoursBlock;
     });
 
     sh.body.innerHTML =
@@ -144,6 +160,29 @@
       updTotal();
     });
     updTotal();
+
+    const modeChips = U.qsa('[data-hours-mode]', sh.body);
+    const ivWrap = U.qs('[data-mode-interval]', sh.body);
+    const directInput = U.qs('[data-hours-direct]', sh.body);
+    const totalWrap = U.qs('.iv-total', sh.body);
+
+    function setHoursMode(mode) {
+      hoursMode = mode;
+      modeChips.forEach((c) => c.classList.toggle('active', c.getAttribute('data-hours-mode') === mode));
+      ivWrap.style.display = mode === 'interval' ? '' : 'none';
+      directInput.style.display = mode === 'direct' ? '' : 'none';
+      totalWrap.style.display = mode === 'interval' ? '' : 'none';
+      if (mode === 'direct') {
+        const filled = collectIvs().filter((iv) => iv.from && iv.to && iv.to > iv.from);
+        const tot = filled.reduce((s, iv) => s + ivMinutes(iv), 0) / 60;
+        if (tot > 0 && directInput.value.trim() === '') {
+          directInput.value = String(Math.round(tot * 100) / 100).replace('.', ',');
+        }
+      }
+    }
+    modeChips.forEach((c) =>
+      c.addEventListener('click', () => setHoursMode(c.getAttribute('data-hours-mode')))
+    );
 
     const conceptToggle = U.qs('[data-concept-toggle]', sh.body);
     conceptToggle.addEventListener('change', () => {
@@ -208,15 +247,32 @@
         rec.time = timeInput.value;
       }
       rec.income = v.income != null ? v.income : 0;
-      const filledIvs = collectIvs().filter((iv) => iv.from && iv.to);
-      if (filledIvs.some((iv) => iv.to <= iv.from)) {
-        toast('Elke eindtijd moet na de begintijd liggen', 'error');
-        return;
+      if (hoursMode === 'direct') {
+        rec.hoursMode = 'direct';
+        rec.intervals = [];
+        const rawD = directInput.value.trim();
+        if (rawD !== '') {
+          const dh = U.parseNum(rawD);
+          if (isNaN(dh) || dh < 0) {
+            toast('Vul een geldig aantal uur in', 'error');
+            return;
+          }
+          rec.hours = Math.round(dh * 100) / 100;
+        } else {
+          rec.hours = 0;
+        }
+      } else {
+        rec.hoursMode = 'interval';
+        const filledIvs = collectIvs().filter((iv) => iv.from && iv.to);
+        if (filledIvs.some((iv) => iv.to <= iv.from)) {
+          toast('Elke eindtijd moet na de begintijd liggen', 'error');
+          return;
+        }
+        rec.intervals = filledIvs;
+        rec.hours = filledIvs.length
+          ? Math.round(intervalsTotal(filledIvs) * 100) / 100
+          : (existing ? Number(existing.hours) || 0 : 0);
       }
-      rec.intervals = filledIvs;
-      rec.hours = filledIvs.length
-        ? Math.round(intervalsTotal(filledIvs) * 100) / 100
-        : (existing ? Number(existing.hours) || 0 : 0);
       rec.status = v.status || 'planned';
       rec.notes = (v.notes || '').trim();
       rec.updatedAt = nowIso;

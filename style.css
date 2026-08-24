@@ -2912,3 +2912,7 @@ button.set-row:hover {
   font-size: 1.05rem;
   color: var(--gold-bright);
 }
+
+/* Uren-invoer: moduskiezer */
+[data-hours-direct] { max-width: 160px; }
+.form .chip-row.seg { display: inline-flex; max-width: 100%; }
