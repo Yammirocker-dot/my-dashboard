@@ -86,7 +86,7 @@
         return;
       }
       reg.addEventListener('updatefound', () => {
-        const nw = reg.installing;
+        const nw = reg.installing || reg.waiting;
         if (!nw) return;
         nw.addEventListener('statechange', () => {
           if (nw.state === 'activated') {
@@ -95,12 +95,32 @@
           }
         });
       });
+      try {
+        await navigator.serviceWorker.register(
+          './service-worker.js?v=' + Date.now(),
+          { updateViaCache: 'none' }
+        );
+      } catch (e2) {}
       await reg.update();
-      setTimeout(() => {
-        btn.disabled = false;
-        if (sub) sub.textContent = oldSub;
-        if (!updated) toast('Je hebt de nieuwste versie');
-      }, 2000);
+      await new Promise((resolve) => {
+        let waited = 0;
+        const timer = setInterval(() => {
+          waited += 400;
+          if (updated || reg.waiting || waited >= 6000) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 400);
+      });
+      btn.disabled = false;
+      if (sub) sub.textContent = oldSub;
+      if (!updated) {
+        if (reg.waiting) {
+          location.reload();
+        } else {
+          toast('Nog geen nieuwe versie \u2014 probeer over een paar minuten opnieuw');
+        }
+      }
     } catch (e) {
       btn.disabled = false;
       if (sub) sub.textContent = oldSub;
