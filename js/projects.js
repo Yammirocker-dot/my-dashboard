@@ -7,7 +7,6 @@
       { name: 'date', label: 'Datum', type: 'date', required: true },
       { name: 'client', label: 'Klant (optioneel)', type: 'text', placeholder: 'bijv. Sheraton' },
       { name: 'income', label: 'Inkomen (\u20AC)', type: 'number', step: '0.01', min: 0, placeholder: '0,00' },
-      { name: 'hours', label: 'Uren', type: 'number', step: '0.25', min: 0, placeholder: '0' },
       {
         name: 'status', label: 'Status', type: 'select',
         options: U.PROJECT_STATUS.map((s) => ({ value: s.id, label: s.label }))
@@ -16,39 +15,110 @@
     ];
   }
 
-  function hoursRaw(p) {
-    if (!p) return '';
-    if (p.hours != null && p.hours !== '') return String(p.hours);
-    const f = Number(p.filmingHours) || 0;
-    const e = Number(p.editingHours) || 0;
-    return (f + e) > 0 ? String(f + e) : '';
-  }
-
   function valuesOf(p) {
     return {
       name: p ? p.name : '',
       date: p && p.date ? p.date : U.todayISO(),
       client: p ? p.client || '' : '',
       income: p ? String(p.income != null ? p.income : '') : '',
-      hours: hoursRaw(p),
       status: p && p.status ? p.status : 'planned',
       notes: p ? p.notes || '' : ''
     };
+  }
+
+  function ivMinutes(iv) {
+    if (!iv || !iv.from || !iv.to) return 0;
+    const [fh, fm] = iv.from.split(':').map(Number);
+    const [th, tm] = iv.to.split(':').map(Number);
+    const diff = (th * 60 + tm) - (fh * 60 + fm);
+    return diff > 0 ? diff : 0;
+  }
+
+  function intervalsTotal(intervals) {
+    return (intervals || []).reduce((s, iv) => s + ivMinutes(iv), 0) / 60;
+  }
+
+  function ivRowHTML(iv) {
+    return (
+      '<div class="iv-row-edit" data-iv>' +
+      '<input type="time" class="input iv-from" value="' + U.esc(iv.from || '') + '" aria-label="Begintijd">' +
+      '<span class="iv-sep">\u2013</span>' +
+      '<input type="time" class="input iv-to" value="' + U.esc(iv.to || '') + '" aria-label="Eindtijd">' +
+      '<button type="button" class="icon-btn iv-del" aria-label="Interval verwijderen">' + Icons.x + '</button>' +
+      '</div>'
+    );
   }
 
   function openForm(existing, defaults, onSaved) {
     const sh = Sheet.open({ title: existing ? 'Opdracht bewerken' : 'Nieuwe opdracht', fullscreen: true });
     const vals = Object.assign(valuesOf(existing), defaults || {});
     const cfg = fields();
+
+    const existingIvs = (existing && Array.isArray(existing.intervals) && existing.intervals.length)
+      ? existing.intervals
+      : [{}];
+    const legacyHours = existing &&
+      !(Array.isArray(existing.intervals) && existing.intervals.length) &&
+      Number(existing.hours) > 0;
+
+    const ivBlock =
+      '<div class="field">' +
+      '<label class="field-label">Gewerkt van \u2013 tot</label>' +
+      (legacyHours
+        ? '<p class="form-hint">Opgeslagen totaal: ' + U.esc(U.fmtNum(Number(existing.hours), 1)) +
+          ' u zonder tijden. Voeg tijden toe om dit te vervangen.</p>'
+        : '') +
+      '<div id="iv-list">' + existingIvs.map(ivRowHTML).join('') + '</div>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-add-interval>' + Icons.plus + 'Interval toevoegen</button>' +
+      '<p class="iv-total">Totaal: <strong data-iv-total>\u2013</strong></p>' +
+      '</div>';
+
+    let fieldsHTML = '';
+    cfg.forEach((f) => {
+      fieldsHTML += Forms.fieldRow(Object.assign({}, f, { value: vals[f.name] }));
+      if (f.name === 'income') fieldsHTML += ivBlock;
+    });
+
     sh.body.innerHTML =
       '<form class="form" novalidate>' +
-      cfg.map((f) => Forms.fieldRow(Object.assign({}, f, { value: vals[f.name] }))).join('') +
+      fieldsHTML +
       '<div class="form-actions">' +
       '<button type="button" class="btn btn-ghost" data-cancel>Annuleren</button>' +
       '<button type="submit" class="btn btn-gold">' + (existing ? 'Opslaan' : 'Toevoegen') + '</button>' +
       '</div></form>';
 
     const form = U.qs('form', sh.body);
+
+    function collectIvs() {
+      return U.qsa('[data-iv]', form).map((r) => ({
+        from: U.qs('.iv-from', r).value,
+        to: U.qs('.iv-to', r).value
+      }));
+    }
+
+    function updTotal() {
+      const filled = collectIvs().filter((iv) => iv.from && iv.to);
+      const bad = filled.some((iv) => iv.to <= iv.from);
+      const el = U.qs('[data-iv-total]', sh.body);
+      if (bad) { el.textContent = '? \u2013 eindtijd moet na begintijd'; return; }
+      const tot = filled.reduce((s, iv) => s + ivMinutes(iv), 0) / 60;
+      el.textContent = filled.length ? U.fmtNum(tot, 1) + ' uur' : '\u2013';
+    }
+
+    form.addEventListener('input', (e) => {
+      if (e.target.classList.contains('iv-from') || e.target.classList.contains('iv-to')) updTotal();
+    });
+    U.qs('[data-add-interval]', sh.body).addEventListener('click', () => {
+      U.qs('#iv-list', sh.body).insertAdjacentHTML('beforeend', ivRowHTML({}));
+    });
+    sh.body.addEventListener('click', (e) => {
+      const del = e.target.closest('.iv-del');
+      if (!del) return;
+      del.closest('[data-iv]').remove();
+      updTotal();
+    });
+    updTotal();
+
     U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -62,7 +132,15 @@
       rec.date = v.date;
       rec.client = (v.client || '').trim();
       rec.income = v.income != null ? v.income : 0;
-      rec.hours = v.hours != null ? v.hours : 0;
+      const filledIvs = collectIvs().filter((iv) => iv.from && iv.to);
+      if (filledIvs.some((iv) => iv.to <= iv.from)) {
+        toast('Elke eindtijd moet na de begintijd liggen', 'error');
+        return;
+      }
+      rec.intervals = filledIvs;
+      rec.hours = filledIvs.length
+        ? Math.round(intervalsTotal(filledIvs) * 100) / 100
+        : (existing ? Number(existing.hours) || 0 : 0);
       rec.status = v.status || 'planned';
       rec.notes = (v.notes || '').trim();
       rec.updatedAt = nowIso;
@@ -114,6 +192,13 @@
         mrow(Icons.calendar, 'Datum', U.esc(U.fmtDate(p.date))) +
         (p.client ? mrow(Icons.user, 'Klant', U.esc(p.client)) : '') +
         mrow(Icons.clock, 'Uren', U.esc(U.fmtNum(h, 1))) +
+        ((Array.isArray(p.intervals) && p.intervals.length)
+          ? p.intervals.map((iv) =>
+            '<div class="meta-row sub"><span class="meta-icon"></span>' +
+            '<span class="meta-label iv-time">' + U.esc(iv.from) + ' \u2013 ' + U.esc(iv.to) + '</span>' +
+            '<span class="meta-value">' + U.esc(U.fmtNum(ivMinutes(iv) / 60, 1)) + ' u</span></div>'
+          ).join('')
+          : '') +
         mrow(Icons.trendingUp, 'Per uur', iph != null ? U.esc(U.fmtMoney(iph)) : '\u2013') +
         '</div>' +
 

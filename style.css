@@ -2858,3 +2858,15 @@ button.set-row:hover {
 /* Betaald-toggle in detailweergave */
 .detail .paid-toggle { margin-top: 14px; }
 
+
+/* Tijdsintervallen (van-tot) */
+.iv-row-edit { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.iv-row-edit .input { flex: 1; min-width: 0; text-align: center; padding-left: 6px; padding-right: 6px; }
+.iv-sep { color: var(--gold); flex: none; font-weight: 600; }
+.iv-del { flex: none; color: var(--gold); }
+.iv-total { margin-top: 8px; font-size: 0.9rem; color: rgba(226, 240, 228, 0.55); }
+.iv-total strong { color: var(--gold-bright); font-size: 1.05rem; }
+.form-hint { font-size: 0.85rem; color: rgba(226, 240, 228, 0.55); margin: 2px 0 10px; }
+.meta-row.sub { margin-top: -4px; }
+.meta-row.sub .meta-label,
+.meta-row.sub .meta-value { opacity: 0.7; font-weight: 500; }
