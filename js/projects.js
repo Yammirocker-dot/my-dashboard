@@ -20,7 +20,7 @@
   function valuesOf(p) {
     return {
       name: p ? p.name : '',
-      date: p && p.date ? p.date : U.todayISO(),
+      date: p && p.date ? p.date : '',
       client: p ? p.client || '' : '',
       income: p ? String(p.income != null ? p.income : '') : '',
       budgetMin: p && p.budgetMin != null ? String(p.budgetMin) : '',
@@ -84,7 +84,6 @@
       '<input type="checkbox" data-concept-toggle' + (vals.concept ? ' checked' : '') + '>' +
       '<span>Concept</span>' +
       '</label>' +
-      '<p class="form-hint">Nog geen definitieve opdracht: geen datum nodig en je kan een budgetrange opgeven.</p>' +
       '</div>';
 
     let fieldsHTML = '';
