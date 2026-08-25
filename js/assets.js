@@ -432,7 +432,6 @@
           toast('Voeg minstens \u00E9\u00E9n aankoop toe', 'error');
           return;
         }
-        const tracked = U.qs('#stock-tracked', form).checked;
         const stocks = await getStocks();
         const rec = {
           id: existing ? existing.id : 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),

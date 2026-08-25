@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.9.5';
+  const VERSION = '1.9.6';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -230,11 +230,11 @@
     const need = ['start', 'calendar', 'assets', 'more'];
     const missing = need.filter((k) => !(window.Views && typeof window.Views[k] === 'function'));
     if (missing.length === 0) {
-      try { sessionStorage.removeItem('vhx_repairs'); } catch (e) {}
+      try { localStorage.removeItem('vhx_repairs'); } catch (e) {}
       return false;
     }
     let attempts = 0;
-    try { attempts = Number(sessionStorage.getItem('vhx_repairs') || 0); } catch (e) {}
+    try { attempts = Number(localStorage.getItem('vhx_repairs') || 0); } catch (e) {}
     const auto = attempts < 2;
 
     const ov = document.createElement('div');
@@ -268,7 +268,7 @@
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((r) => r.unregister()));
       } catch (e) {}
-      try { sessionStorage.setItem('vhx_repairs', String(attempts + 1)); } catch (e) {}
+      try { localStorage.setItem('vhx_repairs', String(attempts + 1)); } catch (e) {}
       setTimeout(() => location.replace('./?repair=' + Date.now()), 400);
     }
 
