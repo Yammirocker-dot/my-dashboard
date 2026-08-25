@@ -91,7 +91,7 @@
 
     const todayISOStr = U.todayISO();
     const upcoming = S.data.projects
-      .filter((p) => p.date && p.date >= todayISOStr)
+      .filter((p) => p.date && p.date >= todayISOStr && p.status !== 'idea')
       .sort((a, b) => a.date.localeCompare(b.date));
 
     let upHTML;
