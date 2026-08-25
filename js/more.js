@@ -105,7 +105,7 @@
       if (sub) sub.textContent = oldSub;
 
       if (!found && !reg.waiting) {
-        toast('Je hebt de nieuwste versie');
+        toast('Geen nieuwe versie gevonden \u2014 probeer over enkele minuten opnieuw', 'info');
         return;
       }
 
@@ -115,13 +115,18 @@
         return;
       }
 
-      const worker = reg.waiting || found;
-      for (let i = 0; i < 40; i++) {
-        const pending = reg.installing || reg.waiting;
-        if (!pending && reg.active) break;
-        await new Promise((r) => setTimeout(r, 200));
-      }
-      location.reload();
+      if (sub) sub.textContent = 'Force-update\u2026';
+      try {
+        const keys = await caches.keys();
+        await Promise.all(
+          keys
+            .filter((k) => k.indexOf('vhxmedia') === 0)
+            .map((k) => caches.delete(k))
+        );
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      } catch (e3) {}
+      location.replace('./?force=' + Date.now());
     } catch (e) {
       btn.disabled = false;
       if (sub) sub.textContent = oldSub;
