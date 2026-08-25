@@ -179,7 +179,7 @@
     }
     return (
       '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
-      '<span class="acc-name">' + U.esc(s.name) + ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span></span>' +
+      '<span class="acc-name">' + U.esc(s.name) + (s.ticker ? ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span>' : '') + '</span>' +
       '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(fmtCur(v.native, cur)) + '</span>' +
       sub +
       '</button>'
@@ -342,14 +342,15 @@
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         Forms.clearErrors(form);
+        const tracked = U.qs('#stock-tracked', form).checked;
         const res = Forms.readForm(form, [
           { name: 'name', label: 'Naam', type: 'text', required: true },
-          { name: 'ticker', label: 'Ticker', type: 'text', required: true },
+          { name: 'ticker', label: 'Ticker', type: 'text', required: tracked },
           { name: 'currency', label: 'Valuta', type: 'text' },
           { name: 'bankId', label: 'Bank', type: 'text', required: true }
         ]);
         if (!res.ok) {
-          toast('Kies een bank voor dit aandeel', 'error');
+          toast(tracked ? 'Kies een bank en vul de ticker in' : 'Kies een bank voor dit aandeel', 'error');
           return;
         }
         const rows = U.qsa('.lot-row', list);
@@ -376,7 +377,7 @@
         const rec = {
           id: existing ? existing.id : 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           name: res.values.name,
-          ticker: String(res.values.ticker).toUpperCase(),
+          ticker: String(res.values.ticker || '').toUpperCase(),
           currency: res.values.currency === 'USD' ? 'USD' : 'EUR',
           bankId: res.values.bankId || '',
           tracked: tracked,
