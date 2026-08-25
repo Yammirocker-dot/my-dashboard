@@ -227,13 +227,16 @@
     } else if (v.live && inv > 0) {
       const diff = v.native - inv;
       const pct = Math.round((diff / inv) * 1000) / 10;
-      let txt =
-        '<b class="' + (diff >= 0 ? 'up">\u2248 ' : 'down">\u2248 ') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>';
+      const main = '<b class="' + (diff >= 0 ? 'up">\u2248 ' : 'down">\u2248 ') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>';
       if (cur === 'USD') {
         const eurDiff = v.native * usdRate(quotes) - usdEurCost(s, quotes);
-        txt += ' \u00B7 <span class="' + (eurDiff >= 0 ? 'up">\u2248 ' : 'down">\u2248 ') + U.esc(fmtCur(eurDiff, 'EUR')) + '</span>';
+        sub =
+          '<span class="stock-sub stack">' + main +
+          '<span class="' + (eurDiff >= 0 ? 'up">' : 'down">') + U.esc('\u2248 ' + fmtCur(eurDiff, 'EUR')) + '</span>' +
+          '</span>';
+      } else {
+        sub = '<span class="stock-sub">' + main + '</span>';
       }
-      sub = '<span class="stock-sub">' + txt + '</span>';
     } else {
       sub = '<span class="stock-sub">' + sh + ' stuks</span>';
     }

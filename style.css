@@ -3223,6 +3223,12 @@ button.set-row:hover {
   color: var(--txt3);
 }
 
+.stock-sub.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .stock-sub .up {
   color: #58c08a;
 }
