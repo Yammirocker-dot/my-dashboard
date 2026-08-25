@@ -115,11 +115,10 @@
     );
   }
 
-  function stockTile(s, quotes, banks) {
+  function stockTile(s, quotes) {
     const v = stockValue(s, quotes);
     const inv = investedOf(s);
     const sh = sharesOf(s);
-    const bank = (banks || []).find((b) => b.id === s.bankId);
     let sub;
     if (!s.tracked) {
       sub = '<span class="stock-sub">Niet getrackt \u00B7 ' + sh + ' st.</span>';
@@ -134,7 +133,6 @@
       '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
       '<span class="acc-name">' + U.esc(s.name) + ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span></span>' +
       '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(v.value)) + '</span>' +
-      '<span class="stock-sub"><span class="bank-tag">' + U.esc(bank ? bank.name : 'Geen bank') + '</span></span>' +
       sub +
       '</button>'
     );
@@ -151,49 +149,39 @@
     const total = cash + stockTotal;
 
     let groupsHTML = '';
+    const trackedCount = stocksList.filter((s) => s.tracked).length;
     banks.forEach((b) => {
       const list = accs.filter((a) => a.bankId === b.id);
+      const bStocks = stocksList.filter((s) => s.bankId === b.id);
+      let bStockTotal = 0;
+      bStocks.forEach((s) => { bStockTotal += stockValue(s, quotes).value; });
       groupsHTML +=
         '<div class="bank-group">' +
         '<div class="section-row"><h3 class="section-title"><span class="bank-dot"></span>' + U.esc(b.name) +
-        ' <span class="muted">(' + list.length + ')</span></h3>' +
-        '<span class="bank-sum">' + U.esc(U.fmtMoney(totalOf(list))) + '</span>' +
+        ' <span class="muted">(' + (list.length + bStocks.length) + ')</span></h3>' +
+        '<span class="bank-sum">' + U.esc(U.fmtMoney(totalOf(list) + bStockTotal)) + '</span>' +
         '<button type="button" class="icon-btn" data-bank="' + U.esc(b.id) + '" aria-label="Bank aanpassen">' + Icons.edit + '</button>' +
         '</div>' +
-        (list.length
-          ? '<div class="acc-grid">' + list.map(accTile).join('') + '</div>'
+        (list.length || bStocks.length
+          ? '<div class="acc-grid">' +
+            list.map(accTile).join('') +
+            bStocks.map((s) => stockTile(s, quotes)).join('') +
+            '</div>'
           : '<p class="muted-sm">Nog geen rekeningen bij deze bank.</p>') +
         '</div>';
     });
     const loose = accs.filter((a) => !a.bankId || !banks.some((x) => x.id === a.bankId));
-    if (loose.length) {
+    const looseStocks = stocksList.filter((s) => !s.bankId || !banks.some((x) => x.id === s.bankId));
+    if (loose.length || looseStocks.length) {
       groupsHTML +=
         '<div class="bank-group">' +
         (banks.length
-          ? '<div class="section-row"><h3 class="section-title">Zonder bank <span class="muted">(' + loose.length + ')</span></h3><span class="bank-sum">' + U.esc(U.fmtMoney(totalOf(loose))) + '</span></div>'
+          ? '<div class="section-row"><h3 class="section-title">Zonder bank <span class="muted">(' + (loose.length + looseStocks.length) + ')</span></h3><span class="bank-sum">' + U.esc(U.fmtMoney(totalOf(loose))) + '</span></div>'
           : '') +
         '<div class="acc-grid">' +
         loose.map(accTile).join('') +
+        looseStocks.map((s) => stockTile(s, quotes)).join('') +
         '</div></div>';
-    }
-
-    let stocksHTML = '';
-    if (stocksList.length || banks.length || accs.length) {
-      const trackedCount = stocksList.filter((s) => s.tracked).length;
-      stocksHTML =
-        '<div class="bank-group" id="stocks-section">' +
-        '<div class="section-row"><h3 class="section-title"><span class="ic-gold">' + Icons.chart + '</span> Aandelen <span class="muted">(' + stocksList.length + ')</span></h3>' +
-        '<span class="bank-sum">' + U.esc(U.fmtMoney(stockTotal)) + '</span>' +
-        '<button type="button" class="icon-btn" data-add-stock aria-label="Aandeel toevoegen">' + Icons.plus + '</button>' +
-        (trackedCount
-          ? '<button type="button" class="icon-btn" data-refresh-stocks aria-label="Koersen verversen">' + Icons.trendingUp + '</button>'
-          : '') +
-        '</div>' +
-        (stocksList.length
-          ? '<div class="acc-grid">' + stocksList.map((s) => stockTile(s, quotes, banks)).join('') + '</div>'
-          : '<p class="muted-sm">Voeg je eerste aandeel toe met het + icoontje.</p>') +
-        (trackedCount ? '<p class="quote-note">Koersen via Yahoo Finance \u00B7 tik op ' + Icons.trendingUp + ' om te verversen</p>' : '') +
-        '</div>';
     }
 
     root.innerHTML =
@@ -203,14 +191,16 @@
       '<p class="date-sub">' + U.esc(U.fmtDateLong(new Date())) + '</p>' +
       '</div></header>' +
       '<div class="card acc-total static">' +
+      (trackedCount
+        ? '<button type="button" class="icon-btn quote-refresh" data-refresh-stocks aria-label="Koersen verversen">' + Icons.trendingUp + '</button>'
+        : '') +
       '<span class="acc-badge">' + Icons.wallet + '</span>' +
       '<div class="big-number' + (total < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(total)) + '</div>' +
       '<div class="hero-meta">' + banks.length + ' bank' + (banks.length === 1 ? '' : 'en') + ' \u00B7 ' + accs.length + ' rekening' + (accs.length === 1 ? '' : 'en') +
       (stocksList.length ? ' \u00B7 ' + stocksList.length + ' aandelen' : '') + '</div>' +
       '</div>' +
       groupsHTML +
-      stocksHTML +
-      (!groupsHTML && !stocksHTML
+      (!groupsHTML
         ? '<p class="muted-sm" style="margin-top:14px;text-align:center">Gebruik de + knop om een bank en rekening toe te voegen.</p>'
         : '') +
       '</section>';
@@ -511,8 +501,6 @@
         if (stock) stockSheet(stock, () => render(lastRoot));
       })
     );
-    const addStock = U.qs('[data-add-stock]', root);
-    if (addStock) addStock.addEventListener('click', () => stockSheet(null, () => render(lastRoot)));
     const refreshBtn = U.qs('[data-refresh-stocks]', root);
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshQuotes(true));
   }
