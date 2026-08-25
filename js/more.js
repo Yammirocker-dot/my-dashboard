@@ -29,9 +29,12 @@
       '</select></div>' +
       '</div>' +
 
-      '<h3 class="section-title">Hergeinneringen</h3>' +
+      '<h3 class="section-title">Herinneringen</h3>' +
       '<div class="card set-group">' +
-      setRowBtn(Icons.clock, 'Opkomende opdrachten', App.state.settings.notify ? 'Aan \u2014 2 dagen vooraf' : 'Uit', 'notify') +
+      '<div class="set-row static"><span class="set-icon">' + Icons.clock + '</span>' +
+      '<span class="set-main">Opkomende opdrachten<span class="set-sub">' + (App.state.settings.notify ? 'Aan \u2014 tot 2 dagen vooraf' : 'Uit') + '</span></span>' +
+      '<button type="button" class="switch' + (App.state.settings.notify ? ' on' : '') + '" data-action="notify" role="switch" aria-checked="' + (App.state.settings.notify ? 'true' : 'false') + '" aria-label="Herinneringen aan of uit"><span class="knob"></span></button>' +
+      '</div>' +
       '</div>' +
 
       '<h3 class="section-title">Gegevens</h3>' +
@@ -314,7 +317,8 @@
     }
     if ((await DB.getSetting('notify', null)) === 'on') {
       await DB.setSetting('notify', 'off');
-      toast('Hergeinneringen uitgeschakeld');
+      App.state.settings.notify = false;
+      toast('Herinneringen uitgeschakeld');
       App.refresh();
       return;
     }
@@ -325,6 +329,7 @@
       return;
     }
     await DB.setSetting('notify', 'on');
+    App.state.settings.notify = true;
     toast('Aan \u2014 je krijgt tot 2 dagen voor elke opdracht een seintje');
     App.refresh();
   }
