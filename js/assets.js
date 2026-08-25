@@ -41,23 +41,35 @@
   function sharesOf(s) {
     return (s.lots || []).reduce((t, l) => t + (Number(l.shares) || 0), 0);
   }
+  function lotPrice(l) {
+    if (l.price != null && l.price !== '') return Number(l.price) || 0;
+    const c = Number(l.cost);
+    if (!isFinite(c)) return 0;
+    const sh = Number(l.shares);
+    return sh > 0 ? c / sh : c;
+  }
   function investedOf(s) {
-    return (s.lots || []).reduce((t, l) => t + (Number(l.cost) || 0), 0);
+    return (s.lots || []).reduce((t, l) => t + (Number(l.shares) || 0) * lotPrice(l), 0);
+  }
+  function usdRate(quotes) {
+    return quotes['USDEUR'] && quotes['USDEUR'].price ? quotes['USDEUR'].price : 0.92;
   }
   function stockValue(s, quotes) {
     const inv = investedOf(s);
     let native = inv;
     let live = false;
+    let price = null;
     if (s.tracked) {
       const q = quotes[String(s.ticker || '').toUpperCase()];
       if (q && q.price) {
+        price = q.price;
         native = sharesOf(s) * q.price;
         live = true;
       }
     }
     const usd = s.currency === 'USD';
-    const rate = quotes['USDEUR'] && quotes['USDEUR'].price ? quotes['USDEUR'].price : 0.92;
-    return { native: native, value: usd ? native * rate : native, live: live };
+    const rate = usd ? usdRate(quotes) : 1;
+    return { native: native, value: native * rate, live: live, price: price };
   }
 
   function totalOf(list) {
@@ -155,7 +167,13 @@
     } else if (v.live && inv > 0) {
       const diff = v.native - inv;
       const pct = Math.round((diff / inv) * 1000) / 10;
-      sub = '<span class="stock-sub">' + (diff >= 0 ? '<b class="up">+' : '<b class="down">') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b></span>';
+      let txt =
+        '<b class="' + (diff >= 0 ? 'up">+' : 'down">') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>';
+      if (cur === 'USD') {
+        const eurDiff = diff * usdRate(quotes);
+        txt += ' \u00B7 <span class="' + (eurDiff >= 0 ? 'up">' : 'down">') + U.esc(fmtCur(eurDiff, 'EUR')) + '</span>';
+      }
+      sub = '<span class="stock-sub">' + txt + '</span>';
     } else {
       sub = '<span class="stock-sub">' + sh + ' stuks</span>';
     }
@@ -251,14 +269,26 @@
     U.qs('[data-add-stock]', sh.body).addEventListener('click', () => { sh.close(); stockSheet(null, () => render(lastRoot)); });
   }
 
+  function normLot(l) {
+    if (!l) return { date: U.todayISO(), shares: '', price: '' };
+    let p;
+    if (l.price != null && l.price !== '') p = l.price;
+    else {
+      const c = Number(l.cost);
+      const sh = Number(l.shares);
+      p = isFinite(c) && c !== '' ? (sh > 0 ? c / sh : c) : '';
+    }
+    return { date: l.date || '', shares: l.shares != null ? l.shares : '', price: p };
+  }
+
   function lotRow(lot, cur) {
-    const l = lot || { date: U.todayISO(), shares: '', cost: '' };
+    const l = normLot(lot);
     const c = cur === 'USD' ? 'USD' : 'EUR';
     return (
       '<div class="lot-row">' +
       '<input type="date" class="input lot-date" value="' + U.esc(l.date || '') + '" aria-label="Aankoopdatum">' +
-      '<input type="number" step="any" min="0" class="input lot-shares" placeholder="Stuks" value="' + (l.shares != null && l.shares !== '' ? l.shares : '') + '" aria-label="Aantal stuks">' +
-      '<div class="cost-wrap"><span class="cur-sym">' + (c === 'USD' ? '$' : '\u20AC') + '</span><input type="number" step="0.01" min="0" class="input lot-cost" placeholder="0" value="' + (l.cost != null && l.cost !== '' ? l.cost : '') + '" aria-label="Betaald bedrag (' + (c === 'USD' ? '$' : '\u20AC') + ')"></div>' +
+      '<input type="number" step="any" min="0" class="input lot-shares" placeholder="Stuks" value="' + (l.shares !== '' ? l.shares : '') + '" aria-label="Aantal stuks">' +
+      '<div class="cost-wrap"><span class="cur-sym">' + (c === 'USD' ? '$' : '\u20AC') + '</span><input type="number" step="any" min="0" class="input lot-cost" placeholder="Prijs/stk" value="' + (l.price !== '' ? l.price : '') + '" aria-label="Aankoopprijs per stuk (' + (c === 'USD' ? '$' : '\u20AC') + ')"></div>' +
       '<button type="button" class="icon-btn lot-del" aria-label="Aankoop verwijderen">' + Icons.trash + '</button>' +
       '</div>'
     );
@@ -281,7 +311,7 @@
         Forms.fieldRow({ name: 'currency', label: 'Valuta', type: 'select', value: existing && existing.currency ? existing.currency : 'EUR', options: [{ value: 'EUR', label: 'Euro (\u20AC)' }, { value: 'USD', label: 'Dollar ($)' }] }) +
         Forms.fieldRow({ name: 'bankId', label: 'Bank', type: 'select', value: existing ? existing.bankId || '' : '', options: bankOpts }) +
         '<label class="check-row"><input type="checkbox" id="stock-tracked"' + (!existing || existing.tracked ? ' checked' : '') + '><span class="check-label">Live koers volgen</span></label>' +
-        '<p class="sheet-hint"><b>Aankopen</b> \u2014 datum, aantal stuks en betaald bedrag:</p>' +
+        '<p class="sheet-hint"><b>Aankopen</b> \u2014 datum, aantal stuks en aankoopprijs per stuk:</p>' +
       '<div id="lots-list">' + lots.map((l) => lotRow(l, cur0)).join('') + '</div>' +
       '<button type="button" class="btn btn-ghost btn-block" id="add-lot" style="margin-top:6px">' + Icons.plus + 'Aankoop toevoegen</button>' +
       '<div class="form-actions"><button type="submit" class="btn btn-gold btn-block">' + (existing ? 'Opslaan' : 'Aanmaken') + '</button></div>' +
@@ -326,12 +356,15 @@
         const newLots = [];
         for (const r of rows) {
           const shares = Number(U.qs('.lot-shares', r).value);
-          const cost = Number(U.qs('.lot-cost', r).value);
+          const price = Number(U.qs('.lot-cost', r).value);
           if (!U.qs('.lot-shares', r).value && !U.qs('.lot-cost', r).value) continue;
+          const sh2 = isFinite(shares) ? shares : 0;
+          const p2 = isFinite(price) ? price : 0;
           newLots.push({
             date: U.qs('.lot-date', r).value || '',
-            shares: isFinite(shares) ? shares : 0,
-            cost: isFinite(cost) ? cost : 0
+            shares: sh2,
+            price: p2,
+            cost: sh2 * p2
           });
         }
         if (!newLots.length) {
