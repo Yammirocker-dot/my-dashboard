@@ -20,10 +20,7 @@
       '<h3 class="section-title">Beveiliging</h3>' +
       '<div class="card set-group">' +
       setRowBtn(Icons.lock, 'Wijzig PIN', '', 'change-pin') +
-      (Auth.bioSupported()
-        ? '<button type="button" class="set-row" data-action="bio-toggle"><span class="set-icon">' + Icons.shieldCheck + '</span><span class="set-main">Face ID ontgrendeling<span class="set-sub" id="bio-sub">Laden\u2026</span></span>' + Icons.chevronRight + '</button>'
-        : '') +
-      setRowBtn(Icons.shieldCheck, 'Vergrendel app nu', '', 'lock-now') +
+            setRowBtn(Icons.shieldCheck, 'Vergrendel app nu', '', 'lock-now') +
       '<div class="set-row static"><span class="set-icon">' + Icons.clock + '</span>' +
       '<span class="set-main">Automatische vergrendeling</span>' +
       '<select id="autolock-sel" aria-label="Automatische vergrendeling">' +
@@ -141,10 +138,6 @@
       toast('Automatische vergrendeling aangepast');
     });
 
-    Auth.bioStatus().then((st) => {
-      const bioSub = U.qs('#bio-sub', root);
-      if (bioSub && st.supported) bioSub.textContent = st.on ? 'Aan \u2014 dit toestel' : 'Uit \u2014 PIN blijft nodig';
-    });
 
     U.qsa('[data-action]', root).forEach((b) =>
       b.addEventListener('click', () => {
@@ -152,7 +145,6 @@
         if (a === 'edit-goal') openGoalEditor(null);
         else if (a === 'edit-name') openNameEditor();
         else if (a === 'change-pin') Auth.changePinFlow();
-        else if (a === 'bio-toggle') toggleBio();
         else if (a === 'lock-now') App.lockNow();
         else if (a === 'export') exportData();
         else if (a === 'import') pickImportFile();
@@ -164,26 +156,6 @@
     ensureConnListener();
   }
 
-  async function toggleBio() {
-    const st = await Auth.bioStatus();
-    if (!st.on) {
-      const ok = await confirmAction({ title: 'Face ID inschakelen?', message: 'Volgende keer ontgrendel je de app met Face ID. Je PIN blijft als terugval beschikbaar.', danger: false, confirmText: 'Inschakelen', cancelText: 'Annuleren' });
-      if (!ok) return;
-      try {
-        await Auth.bioSetupFlow();
-        toast('Face ID is ingeschakeld');
-      } catch (e) {
-        if (e && e.name === 'NotAllowedError') toast('Geannuleerd', 'info');
-        else toast('Kon niet worden ingeschakeld \u2014 gebruik je PIN', 'error');
-      }
-    } else {
-      const ok = await confirmAction({ title: 'Face ID uitschakelen?', message: 'Ontgrendelen gebeurt weer alleen met je PIN.', danger: false, confirmText: 'Uitschakelen', cancelText: 'Annuleren' });
-      if (!ok) return;
-      await Auth.bioForget();
-      toast('Face ID uitgeschakeld');
-    }
-    App.refresh();
-  }
 
   function openGoalEditor(after) {
     const sh = Sheet.open({ title: 'Jaardoel VHXmedia', small: true });

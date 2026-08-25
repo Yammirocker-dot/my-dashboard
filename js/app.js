@@ -1,6 +1,22 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.5.2';
+  const VERSION = '1.6.0';
+
+  const THEME_COLORS = {
+    '': { main: '#d4903b', bright: '#e6a54e' },
+    gold: { main: '#d4903b', bright: '#e6a54e' },
+    blue: { main: '#4f8fd4', bright: '#6aa7e8' },
+    purple: { main: '#9b6fd4', bright: '#b388e8' },
+    red: { main: '#d4695f', bright: '#e8837f' }
+  };
+
+  function applyTheme(id) {
+    const t = THEME_COLORS[id] || null;
+    const rs = document.documentElement.style;
+    if (!t) { rs.removeProperty('--gold'); rs.removeProperty('--gold-bright'); return; }
+    rs.setProperty('--gold', t.main);
+    rs.setProperty('--gold-bright', t.bright);
+  }
 
   const state = {
     route: 'start',
@@ -16,12 +32,14 @@
   const NAV = [
     { id: 'start', label: 'Start', icon: Icons.home },
     { id: 'calendar', label: 'Kalender', icon: Icons.calendar },
+    { id: 'assets', label: 'Vermogen', icon: Icons.wallet },
     { id: 'more', label: 'Instellingen', icon: Icons.gear }
   ];
 
   const TITLES = {
     start: '',
     calendar: 'Kalender',
+    assets: 'Totaal vermogen',
     more: 'Instellingen'
   };
 
@@ -39,6 +57,9 @@
     state.settings.autoLock = Number(await DB.getSetting('autoLock', 5));
     if (isNaN(state.settings.autoLock)) state.settings.autoLock = 5;
     state.settings.onboarded = !!(await DB.getSetting('onboarded', false));
+    const tc = await DB.getSetting('themeColor', '');
+    state.settings.themeColor = tc || '';
+    applyTheme(state.settings.themeColor);
   }
 
   async function upsertRecord(store, rec) {
@@ -211,6 +232,81 @@
     if (await Auth.isConfigured()) {
       Auth.showLock();
     }
+    scheduleDayPrompt();
+  }
+
+  function scheduleDayPrompt(attempt) {
+    const n = attempt || 0;
+    setTimeout(async () => {
+      if (!Auth.isLocked()) dayPrompt();
+      else if (n < 3) scheduleDayPrompt(n + 1);
+    }, n === 0 ? 1600 : 8000);
+  }
+
+  async function dayPrompt() {
+    const today = U.todayISO();
+    const done = (await DB.getSetting('dayPrompt', null)) || { ymd: '', ids: [] };
+    const doneIds = done.ymd === today ? done.ids : [];
+    const list = state.data.projects
+      .filter((p) => p.date === today && !p.concept && p.status !== 'idea' && p.status !== 'paid' && doneIds.indexOf(p.id) === -1)
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    if (!list.length) return;
+
+    const sh = Sheet.open({ title: 'Vandaag aan de beurt', persistent: true });
+    function rowHTML(p) {
+      const st = U.statusInfo(U.PROJECT_STATUS, p.status);
+      return (
+        '<button type="button" class="up-row card" data-dayproj="' + U.esc(p.id) + '">' +
+        '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
+        '<span class="row-sub">' +
+        U.esc(
+          [
+            p.time || '',
+            p.client || '',
+            Number(p.income) > 0 ? U.fmtMoney(p.income) : ''
+          ].filter(Boolean).join(' \u00B7 ') || 'Nog geen details'
+        ) +
+        '</span></span>' +
+        '<span class="row-side"><span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span>' +
+        Icons.chevronRight +
+        '</span></button>'
+      );
+    }
+
+    async function markAll(ids) {
+      await DB.setSetting('dayPrompt', { ymd: today, ids: ids });
+    }
+
+    if (list.length === 1) {
+      const p0 = list[0];
+      sh.body.innerHTML =
+        '<div class="stack-list">' + rowHTML(p0) + '</div>' +
+        '<div class="form-actions"><button type="button" class="btn btn-gold btn-block" data-dayedit>Info vervolledigen</button>' +
+        '<button type="button" class="btn btn-ghost btn-block" data-daylater style="margin-top:10px">Later</button></div>';
+    } else {
+      sh.body.innerHTML =
+        '<p class="sheet-sub">Er staan vandaag meerdere opdrachten gepland. Tik erop om de info aan te vullen.</p>' +
+        '<div class="stack-list">' + list.map(rowHTML).join('') + '</div>' +
+        '<div class="form-actions"><button type="button" class="btn btn-ghost btn-block" data-daylater>Later</button></div>';
+    }
+
+    async function openEdit(id) {
+      const rec = list.find((p) => p.id === id);
+      await markAll(doneIds.concat([id]));
+      sh.close();
+      Projects.openForm(rec || null);
+    }
+
+    U.qsa('[data-dayproj]', sh.body).forEach((b) =>
+      b.addEventListener('click', () => openEdit(b.getAttribute('data-dayproj')))
+    );
+    const dEd = U.qs('[data-dayedit]', sh.body);
+    if (dEd) dEd.addEventListener('click', () => openEdit(list[0].id));
+
+    U.qs('[data-daylater]', sh.body).addEventListener('click', async () => {
+      await markAll(doneIds.concat(list.map((p) => p.id)));
+      sh.close();
+    });
   }
 
   window.App = {

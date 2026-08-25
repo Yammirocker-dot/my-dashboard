@@ -2918,5 +2918,55 @@ button.set-row:hover {
 .form .chip-row.seg { display: inline-flex; width: fit-content; align-self: flex-start; max-width: 100%; }
 
 .set-row:disabled { opacity: 0.55; pointer-events: none; }
-/* Face ID unlock button on lockscreen */
-.lock-bio svg { width: 18px; height: 18px; margin-right: 8px; flex: none; }
+/* Dag-popup & sectiedividers */
+.sheet-div {
+  padding: 10px 4px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt3);
+}
+
+.muted-sm {
+  font-size: 12px;
+  color: var(--txt3);
+}
+
+.row-money.neg,
+.big-number.neg {
+  color: var(--red);
+}
+
+/* Onboarding profiel */
+.ob-input {
+  width: 100%;
+  margin: 14px 0 6px;
+  padding: 13px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-strong);
+  background: var(--s2);
+  color: var(--txt);
+  font-size: 15px;
+}
+
+.ob-swatches {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 14px 0 4px;
+}
+
+.ob-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  background: var(--sw);
+  cursor: pointer;
+}
+
+.ob-swatch.active {
+  border-color: var(--txt);
+  box-shadow: 0 0 0 2px var(--s1), 0 0 10px rgba(255, 255, 255, 0.15);
+}

@@ -9,6 +9,14 @@
     return Stats.periodRange({ type: 'month' });
   }
 
+  function accentColor() {
+    try {
+      return getComputedStyle(document.documentElement).getPropertyValue('--gold').trim() || '#d4903b';
+    } catch (e) {
+      return '#d4903b';
+    }
+  }
+
   function render(root) {
     const S = App.state;
     const r = dashRange();
@@ -74,9 +82,9 @@
       chartHTML = Charts.stackedBars({
         labels: buckets.map((b) => b.label),
         series: [
-          { name: 'Inkomsten', color: '#d4903b', values: buckets.map((b) => b.income) }
+          { name: 'Inkomsten', color: accentColor(), values: buckets.map((b) => b.income) }
         ],
-        height: 200,
+        height: 300,
         label: 'Maandelijkse inkomsten ' + curYear
       });
     }
@@ -84,8 +92,7 @@
     const todayISOStr = U.todayISO();
     const upcoming = S.data.projects
       .filter((p) => p.date && p.date >= todayISOStr)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 4);
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     let upHTML;
     if (!upcoming.length) {
@@ -107,6 +114,14 @@
         '<div class="stack-list">' + concepts.map(conceptRow).join('') + '</div>'
       : '';
 
+    const ideas = S.data.projects
+      .filter((p) => !p.concept && p.status === 'idea')
+      .sort((a, b) => (a.date || '9999-12-31').localeCompare(b.date || '9999-12-31'));
+    const ideasHTML = ideas.length
+      ? '<div class="section-row"><h3 class="section-title">Idee\u00EBn <span class="muted">(' + ideas.length + ')</span></h3><span class="muted-sm">niet in je totalen</span></div>' +
+        '<div class="stack-list">' + ideas.map((p) => projRow(p, p.date ? U.parseISO(p.date).getDate() : '\u00B7', p.date ? U.MONTHS_SHORT[U.parseISO(p.date).getMonth()].toUpperCase() : '')).join('') + '</div>'
+      : '';
+
     root.innerHTML =
       '<section class="dash fade-in">' +
       '<header class="view-head"><div>' +
@@ -117,12 +132,14 @@
       hero +
       '<div class="mini-grid">' + minis + '</div>' +
       '<div class="card goal-card">' + goalInner + '</div>' +
-      '<div class="card chart-card">' +
-      '<div class="chart-head"><h3 class="section-title">Inkomsten per maand <span class="muted">' + curYear + '</span></h3></div>' +
+      '<div class="card chart-card tappable" data-action="open-months" role="button" tabindex="0">' +
+      '<div class="chart-head"><h3 class="section-title">Inkomsten per maand <span class="muted">' + curYear + '</span></h3>' +
+      '<span class="muted-sm">Tik voor detail per maand</span></div>' +
       chartHTML +
       '</div>' +
       '<div class="section-row"><h3 class="section-title">Komende opdrachten</h3><button type="button" class="link-btn" data-nav="calendar">Kalender</button></div>' +
       '<div class="stack-list">' + upHTML + '</div>' +
+      ideasHTML +
       conceptsHTML +
       '</section>';
 
@@ -212,34 +229,71 @@
 
   function openIncomeSheet(range) {
     const sh = Sheet.open({ title: 'Inkomsten \u00B7 ' + range.label });
-    const items = App.state.data.projects
-      .filter((p) => !p.concept && Number(p.income) > 0 && Stats.inRange(p.date, range))
+    const all = App.state.data.projects
+      .filter((p) => !p.concept && p.status !== 'idea' && Number(p.income) > 0 && Stats.inRange(p.date, range));
+    const today = U.todayISO();
+    const future = all.filter((p) => p.date && p.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const past = all.filter((p) => !p.date || p.date < today)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    const total = items.reduce((s, p) => s + (Number(p.income) || 0), 0);
+    const items = future.concat(past);
+    const total = all.reduce((s, p) => s + (Number(p.income) || 0), 0);
+
+    function rowHTML(p) {
+      return (
+        '<div class="up-row card" data-proj="' + U.esc(p.id) + '" role="button" tabindex="0">' +
+        '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
+        '<span class="row-sub">' +
+        U.esc(
+          [
+            p.date ? U.fmtDate(p.date) : 'Geen datum',
+            p.client || ''
+          ].filter(Boolean).join(' \u00B7 ') || '\u2013'
+        ) +
+        '</span></span>' +
+        '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span></span>' +
+        '</div>'
+      );
+    }
 
     sh.body.innerHTML = items.length
       ? '<p class="sheet-sub">Periode: ' + U.esc(range.label) + ' \u2014 ' + items.length + ' opdracht' + (items.length === 1 ? '' : 'en') + '.</p>' +
         '<div class="stack-list">' +
-        items.map((p) =>
-          '<div class="up-row card" data-proj="' + U.esc(p.id) + '" role="button" tabindex="0">' +
-          '<span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
-          '<span class="row-sub">' +
-          U.esc(
-            [
-              p.date ? U.fmtDate(p.date) : 'Geen datum',
-              p.client || ''
-            ].filter(Boolean).join(' \u00B7 ') || '\u2013'
-          ) +
-          '</span></span>' +
-          '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span></span>' +
-          '</div>'
-        ).join('') +
+        (future.length ? '<div class="sheet-div">Komend</div>' + future.map(rowHTML).join('') : '') +
+        (past.length ? '<div class="sheet-div">Afgelopen</div>' + past.map(rowHTML).join('') : '') +
         '</div>' +
         '<div class="sheet-total"><span>Totaal</span><span>' + U.esc(U.fmtMoney(total)) + '</span></div>'
       : '<div class="empty slim"><h3>Geen inkomsten</h3><p>Er zijn in deze periode nog geen inkomsten geregistreerd.</p></div>';
 
     U.qsa('[data-proj]', sh.body).forEach((b) =>
       b.addEventListener('click', () => Projects.openDetail(b.getAttribute('data-proj')))
+    );
+  }
+
+  function openMonthsSheet(year, buckets) {
+    const sh = Sheet.open({ title: 'Maanden \u00B7 ' + year });
+    const rows = buckets.slice().reverse();
+    const today = U.todayISO();
+    sh.body.innerHTML =
+      '<p class="sheet-sub">Tik op een maand voor de opdrachten en totalen.</p>' +
+      '<div class="stack-list">' +
+      rows.map((b) => {
+        const has = b.income > 0;
+        return has
+          ? '<button type="button" class="set-row" data-month="' + b.key + '"><span class="set-main"><b>' + U.esc(b.label) + '</b><span class="set-sub">' + b.count + ' opdracht' + (b.count === 1 ? '' : 'en') + '</span></span><span class="row-money">' + U.esc(U.fmtMoney(b.income)) + '</span>' + Icons.chevronRight + '</button>'
+          : '<div class="set-row static"><span class="set-main"><b>' + U.esc(b.label) + '</b></span><span class="muted-sm">\u2013</span></div>';
+      }).join('') +
+      '</div>';
+    U.qsa('[data-month]', sh.body).forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-month');
+        const y = Number(key.slice(0, 4));
+        const m = Number(key.slice(5, 7)) - 1;
+        const last = new Date(y, m + 1, 0);
+        const end = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(last.getDate()).padStart(2, '0');
+        sh.close();
+        openIncomeSheet({ start: key + '-01', end: end, label: U.MONTHS_LONG[m] + ' ' + y, _today: today });
+      })
     );
   }
 
@@ -285,6 +339,8 @@
     if (ot) ot.addEventListener('click', () => openOutstandingSheet(() => render(root)));
     const hi = U.qs('[data-action=open-income]', root);
     if (hi) hi.addEventListener('click', () => openIncomeSheet(dashRange()));
+    const mc = U.qs('[data-action=open-months]', root);
+    if (mc) mc.addEventListener('click', () => openMonthsSheet(curYear, Stats.monthBuckets(App.state.data, curYear)));
   }
 
   window.Views = window.Views || {};

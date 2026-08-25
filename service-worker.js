@@ -1,4 +1,4 @@
-const CACHE = 'vhxmedia-v1.5.2';
+const CACHE = 'vhxmedia-v1.6.0';
 
 const ASSETS = [
   './',
@@ -18,6 +18,7 @@ const ASSETS = [
   './js/projects.js',
   './js/dashboard.js',
   './js/calendar.js',
+  './js/assets.js',
   './js/more.js',
   './js/app.js'
 ];

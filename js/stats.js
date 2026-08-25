@@ -24,7 +24,7 @@
   }
 
   function realProjects(data) {
-    return (data.projects || []).filter((p) => !p.concept);
+    return (data.projects || []).filter((p) => !p.concept && p.status !== 'idea');
   }
 
   function inRange(iso, r) {
@@ -189,7 +189,7 @@
     const target = Number(settings.goal) || 0;
     const year = String(new Date().getFullYear());
     let current = 0;
-    (projects || []).filter((p) => !p.concept).forEach((p) => {
+    (projects || []).filter((p) => !p.concept && p.status !== 'idea').forEach((p) => {
       if (U.yearKey(p.date) === year) current += Number(p.income) || 0;
     });
     const pct = target > 0 ? Math.max(0, Math.min(100, (current / target) * 100)) : 0;
