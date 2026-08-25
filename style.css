@@ -3075,3 +3075,34 @@ button.set-row:hover {
   height: 16px;
   color: var(--gold);
 }
+
+.bank-group {
+  margin-top: 18px;
+}
+
+.bank-group .section-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bank-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--gold);
+  display: inline-block;
+  margin-right: 7px;
+  flex: none;
+}
+
+.bank-sum {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--txt2);
+}
+
+.bank-group .icon-btn {
+  flex: none;
+}
