@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.7.5';
+  const VERSION = '1.7.6';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -222,7 +222,33 @@
     }
   }
 
+  function repairIfNeeded() {
+    const need = ['start', 'calendar', 'assets', 'more'];
+    const missing = need.filter((k) => !(window.Views && typeof window.Views[k] === 'function'));
+    if (missing.length === 0) return false;
+    document.body.innerHTML =
+      '<div class="upd-overlay"><div class="upd-card">' +
+      '<h3 class="upd-title">Herstellen</h3>' +
+      '<p class="upd-sub">Een onderdeel kon niet worden geladen \u2014 de app herstelt zichzelf, even geduld\u2026</p>' +
+      '</div></div>';
+    setTimeout(async () => {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(
+          keys
+            .filter((k) => k.indexOf('vhxmedia') === 0)
+            .map((k) => caches.delete(k))
+        );
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      } catch (e) {}
+      location.replace('./?repair=' + Date.now());
+    }, 1200);
+    return true;
+  }
+
   async function boot() {
+    if (repairIfNeeded()) return;
     applyIcons(document);
     try {
       await DB.open();

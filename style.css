@@ -261,7 +261,7 @@ svg {
   z-index: 40;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  padding: 5px 8px calc(env(safe-area-inset-bottom, 0px) + 2px);
+  padding: 3px 8px env(safe-area-inset-bottom, 0px);
   background: rgba(10, 17, 12, 0.88);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -273,12 +273,12 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 7px 2px;
+  gap: 2px;
+  padding: 4px 2px;
   border-radius: var(--r-md);
   color: var(--txt3);
   transition: color 0.18s ease, transform 0.12s ease;
-  min-height: 50px;
+  min-height: 44px;
 }
 
 .bn-item:active {
