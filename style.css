@@ -3106,3 +3106,55 @@ button.set-row:hover {
 .bank-group .icon-btn {
   flex: none;
 }
+
+/* Update-overlay */
+.upd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(4, 8, 5, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.upd-card {
+  width: 100%;
+  max-width: 340px;
+  background: var(--s2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  padding: 22px 20px;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.upd-title {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+.upd-sub {
+  font-size: 13px;
+  color: var(--txt2);
+  margin-bottom: 14px;
+  min-height: 18px;
+}
+
+.upd-bar {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--s3);
+  overflow: hidden;
+}
+
+.upd-fill {
+  height: 100%;
+  width: 4%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  transition: width 0.4s ease;
+}

@@ -114,19 +114,88 @@
         toast('Geannuleerd \u2014 update niet uitgevoerd');
         return;
       }
+      await runUpdater(oldSub);
+    } catch (e) {
+      btn.disabled = false;
+      if (sub) sub.textContent = oldSub;
+      toast(navigator.onLine ? 'Kon niet controleren' : 'Offline \u2014 geen verbinding', 'error');
+    }
+  }
 
-      if (sub) sub.textContent = 'Force-update\u2026';
-      try {
-        const keys = await caches.keys();
-        await Promise.all(
-          keys
-            .filter((k) => k.indexOf('vhxmedia') === 0)
-            .map((k) => caches.delete(k))
-        );
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-      } catch (e3) {}
-      location.replace('./?force=' + Date.now());
+  async function fetchLiveAppVersion() {
+    try {
+      const res = await fetch('./js/app.js?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) return null;
+      const txt = await res.text();
+      const m = txt.match(/const\s+VERSION\s*=\s*'([^']+)'/);
+      return m ? m[1] : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function runUpdater(oldSub) {
+    const from = App.VERSION;
+    let cancelled = false;
+    let target = null;
+
+    const ov = document.createElement('div');
+    ov.className = 'upd-overlay';
+    ov.innerHTML =
+      '<div class="upd-card">' +
+      '<h3 class="upd-title">Ophalen van update</h3>' +
+      '<p class="upd-sub" id="upd-sub">Verbinden\u2026</p>' +
+      '<div class="upd-bar"><div class="upd-fill" id="upd-fill"></div></div>' +
+      '<button type="button" class="btn btn-ghost btn-block" id="upd-cancel" style="margin-top:16px">Annuleren</button>' +
+      '</div>';
+    document.body.appendChild(ov);
+    const subEl = U.qs('#upd-sub', ov);
+    const fillEl = U.qs('#upd-fill', ov);
+    U.qs('#upd-cancel', ov).addEventListener('click', () => { cancelled = true; });
+
+    const MAX = 60;
+    let attempt = 0;
+    let done = false;
+
+    while (!cancelled && !done && attempt < MAX) {
+      attempt++;
+      const ver = await fetchLiveAppVersion();
+      if (ver && ver !== from) {
+        target = ver;
+        done = true;
+        break;
+      }
+      subEl.textContent = 'Poging ' + attempt + ' van ' + MAX + (target ? ' \u00B7 versie ' + target : '');
+      fillEl.style.width = Math.min(96, Math.round((attempt / MAX) * 100)) + '%';
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+
+    if (cancelled) {
+      ov.remove();
+      toast('Update geannuleerd', 'info');
+      return;
+    }
+
+    if (!done) {
+      ov.remove();
+      toast('Server nog niet bijgewerkt \u2014 probeer over enkele minuten opnieuw', 'info');
+      return;
+    }
+
+    subEl.textContent = 'Versie ' + target + ' binnengehaald \u2014 installeren\u2026';
+    fillEl.style.width = '100%';
+    try {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((k) => k.indexOf('vhxmedia') === 0)
+          .map((k) => caches.delete(k))
+      );
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    } catch (e3) {}
+    setTimeout(() => location.replace('./?force=' + Date.now()), 600);
+  }
     } catch (e) {
       btn.disabled = false;
       if (sub) sub.textContent = oldSub;
