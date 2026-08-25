@@ -297,13 +297,16 @@
     });
   }
 
-  function backupPayload() {
+  async function backupPayload() {
     const S = App.state;
     return {
       app: 'vhxmedia-dashboard',
-      formatVersion: 2,
+      formatVersion: 3,
       exportedAt: new Date().toISOString(),
       projects: S.data.projects,
+      banks: (await DB.getSetting('banks', [])) || [],
+      accounts: (await DB.getSetting('accounts', [])) || [],
+      stocks: (await DB.getSetting('stocks', [])) || [],
       settings: {
         goal: S.settings.goal || 0,
         userName: S.settings.userName || 'Liam',
@@ -312,9 +315,9 @@
     };
   }
 
-  function exportData() {
+  async function exportData() {
     try {
-      const json = JSON.stringify(backupPayload(), null, 2);
+      const json = JSON.stringify(await backupPayload(), null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -344,6 +347,69 @@
     input.click();
   }
 
+  function sanitizeBanks(list) {
+    const out = [];
+    for (const b of list) {
+      if (!b || typeof b !== 'object' || !b.name) continue;
+      out.push({
+        id: typeof b.id === 'string' && b.id ? b.id : 'bank_' + U.uid(),
+        name: String(b.name),
+        createdAt: typeof b.createdAt === 'string' ? b.createdAt : new Date().toISOString()
+      });
+    }
+    return out;
+  }
+
+  function sanitizeAccounts(list) {
+    const out = [];
+    for (const a of list) {
+      if (!a || typeof a !== 'object') continue;
+      const bal = Number(a.balance);
+      if (!a.name || isNaN(bal)) continue;
+      out.push({
+        id: typeof a.id === 'string' && a.id ? a.id : 'acc_' + U.uid(),
+        bankId: typeof a.bankId === 'string' ? a.bankId : '',
+        name: String(a.name),
+        balance: bal,
+        createdAt: typeof a.createdAt === 'string' ? a.createdAt : new Date().toISOString()
+      });
+    }
+    return out;
+  }
+
+  function sanitizeStocks(list) {
+    const out = [];
+    for (const s of list) {
+      if (!s || typeof s !== 'object' || !s.name) continue;
+      const lots = Array.isArray(s.lots) ? s.lots : [];
+      const cleanLots = [];
+      for (const l of lots) {
+        if (!l || typeof l !== 'object') continue;
+        const sh = Number(l.shares);
+        let pr = Number(l.price);
+        if (isNaN(pr) && sh > 0) pr = Number(l.cost) / sh;
+        if (!(sh > 0) || !(pr >= 0)) continue;
+        cleanLots.push({
+          date: typeof l.date === 'string' ? l.date : '',
+          shares: sh,
+          price: pr,
+          cost: Math.round(sh * pr * 100) / 100
+        });
+      }
+      out.push({
+        id: typeof s.id === 'string' && s.id ? s.id : 'stk_' + U.uid(),
+        name: String(s.name),
+        ticker: String(s.ticker || '').toUpperCase(),
+        bankId: typeof s.bankId === 'string' ? s.bankId : '',
+        currency: s.currency === 'USD' ? 'USD' : 'EUR',
+        tracked: !!s.tracked,
+        lots: cleanLots,
+        createdAt: typeof s.createdAt === 'string' ? s.createdAt : new Date().toISOString()
+      });
+    }
+    return out;
+  }
+
   async function importData(file) {
     let parsed;
     try {
@@ -357,12 +423,20 @@
       toast('Dit lijkt geen VHXmedia-back-up te zijn', 'error');
       return;
     }
+    const banks = Array.isArray(parsed.banks) ? sanitizeBanks(parsed.banks) : [];
+    const accounts = Array.isArray(parsed.accounts) ? sanitizeAccounts(parsed.accounts) : [];
+    const stocks = Array.isArray(parsed.stocks) ? sanitizeStocks(parsed.stocks) : [];
+
+    const delen = [projects.length + ' opdrachten'];
+    if (banks.length) delen.push(banks.length + ' banken');
+    if (accounts.length) delen.push(accounts.length + ' rekeningen');
+    if (stocks.length) delen.push(stocks.length + ' aandelen');
 
     const ok = await confirmAction({
       title: 'Gegevens importeren',
-      message: projects.length === 0
-        ? 'Dit back-upbestand bevat geen opdrachten. Bestaande gegevens blijven ongewijzigd.'
-        : 'Er worden ' + projects.length + ' opdrachten toegevoegd of bijgewerkt. Bestaande opdrachten blijven behouden.',
+      message: projects.length === 0 && !banks.length && !accounts.length && !stocks.length
+        ? 'Dit back-upbestand bevat geen gegevens. Bestaande gegevens blijven ongewijzigd.'
+        : 'Er worden toegevoegd of bijgewerkt: ' + delen.join(', ') + '. Bestaande gegevens blijven behouden.',
       confirmText: 'Importeren',
       danger: false
     });
@@ -383,9 +457,12 @@
         if (s.userName) { await DB.setSetting('userName', String(s.userName)); }
         if (s.autoLock != null) { await DB.setSetting('autoLock', Number(s.autoLock) || 0); }
       }
+      if (banks.length) await DB.setSetting('banks', banks);
+      if (accounts.length) await DB.setSetting('accounts', accounts);
+      if (stocks.length) await DB.setSetting('stocks', stocks);
       await App.reloadAll();
       App.refresh();
-      toast(count + ' opdrachten ge\u00EFmporteerd');
+      toast(delen.join(', ') + ' ge\u00EFmporteerd');
     } catch (e) {
       toast('Importeren mislukt \u2014 beschadigd bestand?', 'error');
     }
