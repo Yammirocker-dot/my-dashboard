@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.9.2';
+  const VERSION = '1.9.3';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -225,13 +225,35 @@
   function repairIfNeeded() {
     const need = ['start', 'calendar', 'assets', 'more'];
     const missing = need.filter((k) => !(window.Views && typeof window.Views[k] === 'function'));
-    if (missing.length === 0) return false;
-    document.body.innerHTML =
-      '<div class="upd-overlay"><div class="upd-card">' +
+    if (missing.length === 0) {
+      try { sessionStorage.removeItem('vhx_repairs'); } catch (e) {}
+      return false;
+    }
+    let attempts = 0;
+    try { attempts = Number(sessionStorage.getItem('vhx_repairs') || 0); } catch (e) {}
+    const auto = attempts < 2;
+
+    const ov = document.createElement('div');
+    ov.className = 'upd-overlay';
+    ov.innerHTML =
+      '<div class="upd-card">' +
       '<h3 class="upd-title">Herstellen</h3>' +
-      '<p class="upd-sub">Een onderdeel kon niet worden geladen \u2014 de app herstelt zichzelf, even geduld\u2026</p>' +
-      '</div></div>';
-    setTimeout(async () => {
+      '<p class="upd-sub" id="rep-sub"></p>' +
+      '<div class="upd-bar"><div class="upd-fill" id="rep-fill" style="width:' + (auto ? '4%' : '100%') + '"></div></div>' +
+      '<div class="form-actions column" style="margin-top:16px">' +
+      (auto ? '' : '<button type="button" class="btn btn-gold btn-block" id="rep-retry">Opnieuw proberen</button>') +
+      '<button type="button" class="btn btn-ghost btn-block" id="rep-cancel">Annuleren \u2014 versie behouden</button>' +
+      '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+
+    const fill = U.qs('#rep-fill', ov);
+    const sub = U.qs('#rep-sub', ov);
+    let timer = null;
+
+    async function doWipe() {
+      if (fill) fill.style.width = '100%';
+      if (sub) sub.textContent = 'Herladen\u2026';
       try {
         const keys = await caches.keys();
         await Promise.all(
@@ -242,13 +264,41 @@
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((r) => r.unregister()));
       } catch (e) {}
-      location.replace('./?repair=' + Date.now());
-    }, 1200);
-    return true;
+      try { sessionStorage.setItem('vhx_repairs', String(attempts + 1)); } catch (e) {}
+      setTimeout(() => location.replace('./?repair=' + Date.now()), 400);
+    }
+
+    function cancel() {
+      if (timer) clearInterval(timer);
+      ov.remove();
+      toast(auto ? 'Herstel geannuleerd \u2014 versie behouden' : 'Doorgaan met huidige versie', 'info');
+    }
+
+    U.qs('#rep-cancel', ov).addEventListener('click', cancel);
+    const retryBtn = U.qs('#rep-retry', ov);
+    if (retryBtn) retryBtn.addEventListener('click', () => { ov.remove(); doWipe(); });
+
+    if (auto) {
+      let p = 4;
+      sub.textContent = 'Een onderdeel kon niet laden \u2014 herstel loopt\u2026';
+      timer = setInterval(() => {
+        p += 3;
+        fill.style.width = Math.min(96, p) + '%';
+        sub.textContent = p < 40 ? 'Caches controleren\u2026' : p < 78 ? 'Caches wissen\u2026' : 'Bijna klaar \u2014 herladen\u2026';
+        if (p >= 96) {
+          clearInterval(timer);
+          doWipe();
+        }
+      }, 90);
+    } else {
+      sub.textContent = 'Automatisch herstellen lukte niet. Probeer opnieuw of ga verder met deze versie.';
+    }
+
+    return false;
   }
 
   async function boot() {
-    if (repairIfNeeded()) return;
+    repairIfNeeded();
     applyIcons(document);
     try {
       await DB.open();
