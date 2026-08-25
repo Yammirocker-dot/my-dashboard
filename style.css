@@ -2106,6 +2106,10 @@ svg {
 
 /* ---------- Calendar ---------- */
 
+.calendar .search-box {
+  margin-bottom: 16px;
+}
+
 .cal-card {
   padding: 16px 14px 12px;
 }
