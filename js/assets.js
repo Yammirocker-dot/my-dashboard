@@ -258,7 +258,7 @@
       '<div class="lot-row">' +
       '<input type="date" class="input lot-date" value="' + U.esc(l.date || '') + '" aria-label="Aankoopdatum">' +
       '<input type="number" step="any" min="0" class="input lot-shares" placeholder="Stuks" value="' + (l.shares != null && l.shares !== '' ? l.shares : '') + '" aria-label="Aantal stuks">' +
-      '<input type="number" step="0.01" min="0" class="input lot-cost" placeholder="' + (c === 'USD' ? '$' : '\u20AC') + '" value="' + (l.cost != null && l.cost !== '' ? l.cost : '') + '" aria-label="Betaald bedrag (' + (c === 'USD' ? '$' : '\u20AC') + ')">' +
+      '<div class="cost-wrap"><span class="cur-sym">' + (c === 'USD' ? '$' : '\u20AC') + '</span><input type="number" step="0.01" min="0" class="input lot-cost" placeholder="0" value="' + (l.cost != null && l.cost !== '' ? l.cost : '') + '" aria-label="Betaald bedrag (' + (c === 'USD' ? '$' : '\u20AC') + ')"></div>' +
       '<button type="button" class="icon-btn lot-del" aria-label="Aankoop verwijderen">' + Icons.trash + '</button>' +
       '</div>'
     );
@@ -291,9 +291,19 @@
       '</form>';
 
       const list = U.qs('#lots-list', sh.body);
+      function applyCur(cur) {
+        U.qsa('.lot-row', list).forEach((r) => {
+          const sym = U.qs('.cur-sym', r);
+          if (sym) sym.textContent = cur === 'USD' ? '$' : '\u20AC';
+          const inp = U.qs('.lot-cost', r);
+          if (inp) inp.setAttribute('aria-label', 'Betaald bedrag (' + (cur === 'USD' ? '$' : '\u20AC') + ')');
+        });
+      }
+      const curSel = U.qs('[name="currency"]', sh.body);
+      curSel.addEventListener('change', () => applyCur(curSel.value));
       U.qs('#add-lot', sh.body).addEventListener('click', () => {
-        const curSel = U.qs('[name="currency"]', form || sh.body);
-        list.insertAdjacentHTML('beforeend', lotRow(null, curSel ? curSel.value : cur0));
+        list.insertAdjacentHTML('beforeend', lotRow(null, curSel.value));
+        applyCur(curSel.value);
         bindLotRows(list);
       });
       bindLotRows(list);

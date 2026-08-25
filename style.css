@@ -3206,6 +3206,25 @@ button.set-row:hover {
   font-size: 13px;
 }
 
+.cost-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.cur-sym {
+  position: absolute;
+  left: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--txt3);
+  pointer-events: none;
+}
+
+.lot-cost {
+  padding-left: 24px !important;
+}
+
 .lot-row .lot-del {
   width: 36px;
   height: 38px;
@@ -3222,18 +3241,18 @@ button.set-row:hover {
     max-width: none;
   }
 
+  .lot-row .lot-del {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
   .lot-row .lot-shares {
     grid-column: 1;
     grid-row: 2;
   }
 
-  .lot-row .lot-cost {
+  .lot-row .cost-wrap {
     grid-column: 2;
-    grid-row: 2;
-  }
-
-  .lot-row .lot-del {
-    grid-column: 3;
     grid-row: 2;
   }
 }
