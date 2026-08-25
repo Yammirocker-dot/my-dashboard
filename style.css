@@ -278,7 +278,7 @@ svg {
   border-radius: var(--r-md);
   color: var(--txt3);
   transition: color 0.18s ease, transform 0.12s ease;
-  min-height: 52px;
+  min-height: 44px;
 }
 
 .bn-item:active {
