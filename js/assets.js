@@ -247,7 +247,7 @@
         Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', value: existing ? existing.name : '', placeholder: 'bv. Take-Two Interactive' }) +
         Forms.fieldRow({ name: 'ticker', label: 'Ticker (afkorting)', type: 'text', value: existing ? existing.ticker : '', placeholder: 'bv. TTWO' }) +
         Forms.fieldRow({ name: 'bankId', label: 'Bank', type: 'select', value: existing ? existing.bankId || '' : '', options: bankOpts }) +
-        '<div class="set-row static"><span class="set-main"><b>Live koers volgen</b><span class="set-sub">Waarde = aantal stuks \u00D7 actuele prijs</span></span>' +
+        '<div class="set-row static"><span class="set-main"><b>Live koers volgen</b></span>' +
         '<select id="stock-tracked" class="ob-input" aria-label="Live volgen">' +
         '<option value="ja"' + (!existing || existing.tracked ? ' selected' : '') + '>Ja</option>' +
         '<option value="nee"' + (existing && !existing.tracked ? ' selected' : '') + '>Nee</option>' +

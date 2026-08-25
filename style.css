@@ -3216,6 +3216,7 @@ button.set-row:hover {
 
   .lot-row .lot-date {
     grid-column: 1 / -1;
+    max-width: 150px;
   }
 }
 
