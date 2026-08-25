@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.9.4';
+  const VERSION = '1.9.5';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -87,7 +87,11 @@
 
   function renderCurrent() {
     const view = document.getElementById('view');
-    const fn = Views[state.route] || Views.start || Views.dashboard;
+    let fn = Views[state.route] || Views.start || Views.dashboard;
+    if (typeof fn !== 'function') {
+      repairIfNeeded();
+      return;
+    }
     fn(view);
     applyIcons(view);
   }

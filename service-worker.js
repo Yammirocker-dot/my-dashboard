@@ -1,4 +1,4 @@
-const CACHE = 'vhxmedia-v1.9.4';
+const CACHE = 'vhxmedia-v1.9.5';
 
 const ASSETS = [
   './',
@@ -63,6 +63,14 @@ self.addEventListener('fetch', (event) => {
       }
       return res;
     } catch (err) {
+      const keys = await caches.keys();
+      for (const k of keys) {
+        try {
+          const c = await caches.open(k);
+          const m = await c.match(req);
+          if (m) return m;
+        } catch (e) {}
+      }
       if (req.mode === 'navigate') {
         const shell = await caches.match('./index.html');
         if (shell) return shell;
