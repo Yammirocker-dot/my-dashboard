@@ -1,4 +1,4 @@
-const CACHE = 'vhxmedia-v1.9.3';
+const CACHE = 'vhxmedia-v1.9.4';
 
 const ASSETS = [
   './',
@@ -25,7 +25,16 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches
+      .open(CACHE)
+      .then((cache) =>
+        Promise.all(
+          ASSETS.map((u) =>
+            cache.add(new Request(u, { cache: 'reload' })).catch(() => null)
+          )
+        )
+      )
+      .then(() => self.skipWaiting())
   );
 });
 
