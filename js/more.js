@@ -194,6 +194,33 @@
       const regs = await navigator.serviceWorker.getRegistrations();
       await Promise.all(regs.map((r) => r.unregister()));
     } catch (e3) {}
+    subEl.textContent = 'Nieuwe bestanden ophalen\u2026';
+    const FILES = [
+      './index.html',
+      './style.css',
+      './manifest.json',
+      './icons/icon-192.png',
+      './icons/icon-512.png',
+      './icons/icon-maskable-512.png',
+      './icons/apple-touch-icon.png',
+      './js/icons.js',
+      './js/db.js',
+      './js/utils.js',
+      './js/stats.js',
+      './js/charts.js',
+      './js/auth.js',
+      './js/projects.js',
+      './js/dashboard.js',
+      './js/calendar.js',
+      './js/assets.js',
+      './js/more.js',
+      './js/app.js'
+    ];
+    await Promise.all(
+      FILES.map((f) =>
+        fetch(f, { cache: 'reload' }).catch(() => null)
+      )
+    );
     setTimeout(() => location.replace('./?force=' + Date.now()), 600);
   }
 
