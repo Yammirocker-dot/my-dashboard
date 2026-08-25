@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.7.2';
+  const VERSION = '1.7.3';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -115,6 +115,8 @@
     });
     const tb = document.getElementById('topbar-title');
     const brand = document.querySelector('.topbar-logo');
+    const fab = document.getElementById('fab');
+    if (fab) fab.classList.toggle('hidden', route === 'more');
     const t = TITLES[route] != null ? TITLES[route] : '';
     if (t) {
       tb.textContent = t;
@@ -181,8 +183,20 @@
     state.started = true;
     document.getElementById('version-side').textContent = VERSION;
     buildNav();
-    document.getElementById('fab').addEventListener('click', () => Projects.openForm(null));
-    document.getElementById('sidebar-add').addEventListener('click', () => Projects.openForm(null));
+    document.getElementById('fab').addEventListener('click', () => {
+      if (state.route === 'assets') {
+        if (window.AssetsAdd) window.AssetsAdd.open();
+        return;
+      }
+      Projects.openForm(null);
+    });
+    document.getElementById('sidebar-add').addEventListener('click', () => {
+      if (state.route === 'assets') {
+        if (window.AssetsAdd) window.AssetsAdd.open();
+        return;
+      }
+      Projects.openForm(null);
+    });
     document.getElementById('btn-lock').addEventListener('click', () => Auth.showLock());
     window.addEventListener('online', updateOnlinePills);
     window.addEventListener('offline', updateOnlinePills);

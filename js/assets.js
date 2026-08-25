@@ -31,14 +31,15 @@
     );
   }
 
+  let lastRoot = null;
+
   function draw(root, accs, banks) {
+    lastRoot = root;
     const total = totalOf(accs);
 
     let groupsHTML = '';
-    let assigned = [];
     banks.forEach((b) => {
       const list = accs.filter((a) => a.bankId === b.id);
-      assigned = assigned.concat(list.map((a) => a.id));
       groupsHTML +=
         '<div class="bank-group">' +
         '<div class="section-row"><h3 class="section-title"><span class="bank-dot"></span>' + U.esc(b.name) +
@@ -51,8 +52,8 @@
           : '<p class="muted-sm">Nog geen rekeningen bij deze bank.</p>') +
         '</div>';
     });
-    const loose = accs.filter((a) => !a.bankId || !banks.some((b) => b.id === a.bankId));
-    if (loose.length || !banks.length) {
+    const loose = accs.filter((a) => !a.bankId || !banks.some((x) => x.id === a.bankId));
+    if (loose.length) {
       groupsHTML +=
         '<div class="bank-group">' +
         (banks.length
@@ -60,11 +61,7 @@
           : '') +
         '<div class="acc-grid">' +
         loose.map(accTile).join('') +
-        '<button type="button" class="acc-tile acc-add" data-acc-new>' + Icons.plus + 'Nieuwe rekening</button>' +
         '</div></div>';
-    } else {
-      groupsHTML +=
-        '<button type="button" class="link-btn" data-acc-new style="margin-top:12px">' + Icons.plus + 'Nieuwe rekening</button>';
     }
 
     root.innerHTML =
@@ -72,21 +69,28 @@
       '<header class="view-head"><div>' +
       '<h2 class="greeting">Totaal vermogen</h2>' +
       '<p class="date-sub">' + U.esc(U.fmtDateLong(new Date())) + '</p>' +
-      '</div>' +
-      '<button type="button" class="btn btn-ghost btn-sm" data-bank-new>' + Icons.plus + 'Bank</button>' +
-      '</header>' +
+      '</div></header>' +
       '<div class="card acc-total static">' +
       '<span class="acc-badge">' + Icons.wallet + '</span>' +
       '<div class="big-number' + (total < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(total)) + '</div>' +
       '<div class="hero-meta">' + banks.length + ' bank' + (banks.length === 1 ? '' : 'en') + ' \u00B7 ' + accs.length + ' rekening' + (accs.length === 1 ? '' : 'en') + '</div>' +
       '</div>' +
-      '<div class="fade-in">' + groupsHTML + '</div>' +
-      (accs.length || banks.length
-        ? ''
-        : '<p class="muted-sm" style="margin-top:10px;text-align:center">Voeg eerst een bank en rekening toe.</p>') +
+      (groupsHTML ||
+        '<p class="muted-sm" style="margin-top:14px;text-align:center">Gebruik de + knop om een bank en rekening toe te voegen.</p>') +
       '</section>';
 
     bind(root);
+  }
+
+  function chooseSheet() {
+    const sh = Sheet.open({ title: 'Wat wil je toevoegen?', small: true });
+    sh.body.innerHTML =
+      '<div class="stack-list">' +
+      '<button type="button" class="set-row" data-add-bank><span class="set-icon">' + Icons.database + '</span><span class="set-main"><b>Bank</b><span class="set-sub">bv. KBC, Belfius, Revolut</span></span>' + Icons.chevronRight + '</button>' +
+      '<button type="button" class="set-row" data-add-acc><span class="set-icon">' + Icons.wallet + '</span><span class="set-main"><b>Rekening</b><span class="set-sub">bv. Zichtrekening, Spaarrekening</span></span>' + Icons.chevronRight + '</button>' +
+      '</div>';
+    U.qs('[data-add-bank]', sh.body).addEventListener('click', () => { sh.close(); bankSheet(null, () => render(lastRoot)); });
+    U.qs('[data-add-acc]', sh.body).addEventListener('click', () => { sh.close(); accSheet(null, () => render(lastRoot)); });
   }
 
   function accSheet(existing, onDone) {
@@ -218,29 +222,24 @@
   }
 
   function bind(root) {
-    U.qsa('[data-acc-new]', root).forEach((b) =>
-      b.addEventListener('click', () => accSheet(null, () => render(root)))
-    );
     U.qsa('[data-acc]', root).forEach((b) =>
       b.addEventListener('click', async () => {
         const accs = await getAccs();
         const acc = accs.find((a) => a.id === b.getAttribute('data-acc'));
-        if (acc) accSheet(acc, () => render(root));
+        if (acc) accSheet(acc, () => render(lastRoot));
       })
-    );
-    U.qsa('[data-bank-new]', root).forEach((b) =>
-      b.addEventListener('click', () => bankSheet(null, () => render(root)))
     );
     U.qsa('[data-bank]', root).forEach((b) =>
       b.addEventListener('click', async (e) => {
         e.stopPropagation();
         const banks = await getBanks();
         const bank = banks.find((x) => x.id === b.getAttribute('data-bank'));
-        if (bank) bankSheet(bank, () => render(root));
+        if (bank) bankSheet(bank, () => render(lastRoot));
       })
     );
   }
 
   window.Views = window.Views || {};
   window.Views.assets = render;
+  window.AssetsAdd = { open: chooseSheet };
 })();

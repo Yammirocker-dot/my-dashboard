@@ -118,7 +118,7 @@
       .filter((p) => !p.concept && p.status === 'idea')
       .sort((a, b) => (a.date || '9999-12-31').localeCompare(b.date || '9999-12-31'));
     const ideasHTML = ideas.length
-      ? '<div class="section-row"><h3 class="section-title">Op te volgen idee\u00EBn <span class="muted">(' + ideas.length + ')</span></h3><span class="muted-sm">niet in je totalen</span></div>' +
+      ? '<div class="section-row"><h3 class="section-title">Op te volgen idee\u00EBn</h3></div>' +
         '<div class="stack-list">' + ideas.map((p) => projRow(p, p.date ? U.parseISO(p.date).getDate() : '\u00B7', p.date ? U.MONTHS_SHORT[U.parseISO(p.date).getMonth()].toUpperCase() : '')).join('') + '</div>'
       : '';
 
