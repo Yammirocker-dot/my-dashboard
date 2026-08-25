@@ -291,8 +291,8 @@ svg {
 }
 
 .bn-icon svg {
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
 }
 
 .bn-label {
@@ -451,7 +451,7 @@ svg {
 .fab {
   position: fixed;
   right: 18px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  bottom: 64px;
   z-index: 39;
   width: 58px;
   height: 58px;
