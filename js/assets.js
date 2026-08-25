@@ -19,12 +19,10 @@
 
   function draw(root, accs) {
     const total = totalOf(accs);
-    const rows = accs.map((a) =>
-      '<button type="button" class="set-row" data-acc="' + U.esc(a.id) + '">' +
-      '<span class="set-icon">' + Icons.wallet + '</span>' +
-      '<span class="set-main"><b>' + U.esc(a.name) + '</b><span class="set-sub">Saldo bijwerken of hernoemen</span></span>' +
+    const tiles = accs.map((a) =>
+      '<button type="button" class="acc-tile" data-acc="' + U.esc(a.id) + '">' +
+      '<span class="acc-name">' + U.esc(a.name) + '</span>' +
       '<span class="row-money' + ((Number(a.balance) || 0) < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(a.balance)) + '</span>' +
-      Icons.chevronRight +
       '</button>'
     ).join('');
 
@@ -34,17 +32,19 @@
       '<h2 class="greeting">Totaal vermogen</h2>' +
       '<p class="date-sub">' + U.esc(U.fmtDateLong(new Date())) + '</p>' +
       '</div></header>' +
-      '<div class="card hero-card static">' +
-      '<div class="card-label">Totaal vermogen</div>' +
+      '<div class="card acc-total static">' +
+      '<span class="acc-badge">' + Icons.wallet + '</span>' +
       '<div class="big-number' + (total < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(total)) + '</div>' +
       '<div class="hero-meta">' + accs.length + ' rekening' + (accs.length === 1 ? '' : 'en') + '</div>' +
       '</div>' +
-      '<div class="section-row"><h3 class="section-title">Rekeningen</h3>' +
-      '<button type="button" class="link-btn" data-acc-new>' + Icons.plus + 'Nieuwe rekening</button></div>' +
-      (rows
-        ? '<div class="card set-group">' + rows + '</div>'
-        : '<div class="empty slim"><h3>Nog geen rekeningen</h3><p>Maak je eerste rekening aan om je vermogen te volgen.</p>' +
-          '<button type="button" class="btn btn-gold btn-sm" data-acc-new>Rekening aanmaken</button></div>') +
+      '<h3 class="section-title" style="margin-top:16px">Rekeningen</h3>' +
+      '<div class="acc-grid">' +
+      tiles +
+      '<button type="button" class="acc-tile acc-add" data-acc-new>' + Icons.plus + 'Nieuwe rekening</button>' +
+      '</div>' +
+      (accs.length
+        ? ''
+        : '<p class="muted-sm" style="margin-top:10px;text-align:center">Tik op \u201CNieuwe rekening\u201D om te starten.</p>') +
       '</section>';
 
     bind(root, accs);
