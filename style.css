@@ -2104,8 +2104,15 @@ svg {
   height: 18px;
 }
 
-/* ---------- Calendar ---------- */
+.approx-note {
+  margin-top: 18px;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--txt3);
+}
 
+/* ---------- Calendar ---------- */
 .calendar .search-box {
   margin-bottom: 16px;
 }

@@ -228,10 +228,10 @@
       const diff = v.native - inv;
       const pct = Math.round((diff / inv) * 1000) / 10;
       let txt =
-        '<b class="' + (diff >= 0 ? 'up">+' : 'down">') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>';
+        '<b class="' + (diff >= 0 ? 'up">\u2248 ' : 'down">\u2248 ') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>';
       if (cur === 'USD') {
         const eurDiff = v.native * usdRate(quotes) - usdEurCost(s, quotes);
-        txt += ' \u00B7 <span class="' + (eurDiff >= 0 ? 'up">' : 'down">') + U.esc(fmtCur(eurDiff, 'EUR')) + '</span>';
+        txt += ' \u00B7 <span class="' + (eurDiff >= 0 ? 'up">\u2248 ' : 'down">\u2248 ') + U.esc(fmtCur(eurDiff, 'EUR')) + '</span>';
       }
       sub = '<span class="stock-sub">' + txt + '</span>';
     } else {
@@ -310,6 +310,9 @@
       groupsHTML +
       (!groupsHTML
         ? '<p class="muted-sm" style="margin-top:14px;text-align:center">Gebruik de + knop om een bank en rekening toe te voegen.</p>'
+        : '') +
+      (trackedCount
+        ? '<p class="approx-note">* Winsten en rendementen van getrackte aandelen zijn bij benadering: berekend op basis van de laatst beschikbare koers- en wisselgegevens.</p>'
         : '') +
       '</section>';
 
