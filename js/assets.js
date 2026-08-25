@@ -251,13 +251,14 @@
     U.qs('[data-add-stock]', sh.body).addEventListener('click', () => { sh.close(); stockSheet(null, () => render(lastRoot)); });
   }
 
-  function lotRow(lot) {
+  function lotRow(lot, cur) {
     const l = lot || { date: U.todayISO(), shares: '', cost: '' };
+    const c = cur === 'USD' ? 'USD' : 'EUR';
     return (
       '<div class="lot-row">' +
       '<input type="date" class="input lot-date" value="' + U.esc(l.date || '') + '" aria-label="Aankoopdatum">' +
       '<input type="number" step="any" min="0" class="input lot-shares" placeholder="Stuks" value="' + (l.shares != null && l.shares !== '' ? l.shares : '') + '" aria-label="Aantal stuks">' +
-      '<input type="number" step="0.01" min="0" class="input lot-cost" placeholder="\u20AC" value="' + (l.cost != null && l.cost !== '' ? l.cost : '') + '" aria-label="Betaald bedrag">' +
+      '<input type="number" step="0.01" min="0" class="input lot-cost" placeholder="' + (c === 'USD' ? '$' : '\u20AC') + '" value="' + (l.cost != null && l.cost !== '' ? l.cost : '') + '" aria-label="Betaald bedrag (' + (c === 'USD' ? '$' : '\u20AC') + ')">' +
       '<button type="button" class="icon-btn lot-del" aria-label="Aankoop verwijderen">' + Icons.trash + '</button>' +
       '</div>'
     );
@@ -271,6 +272,7 @@
       }
       const sh = Sheet.open({ title: existing ? 'Aandeel bewerken' : 'Nieuw aandeel' });
       const lots = existing && Array.isArray(existing.lots) ? existing.lots.slice() : [];
+      const cur0 = existing && existing.currency ? existing.currency : 'EUR';
       const bankOpts = banks.map((b) => ({ value: b.id, label: b.name }));
       sh.body.innerHTML =
         '<form class="form" novalidate>' +
@@ -280,17 +282,18 @@
         Forms.fieldRow({ name: 'bankId', label: 'Bank', type: 'select', value: existing ? existing.bankId || '' : '', options: bankOpts }) +
         '<label class="check-row"><input type="checkbox" id="stock-tracked"' + (!existing || existing.tracked ? ' checked' : '') + '><span class="check-label">Live koers volgen</span></label>' +
         '<p class="sheet-hint"><b>Aankopen</b> \u2014 datum, aantal stuks en betaald bedrag:</p>' +
-        '<div id="lots-list">' + lots.map(lotRow).join('') + '</div>' +
-        '<button type="button" class="btn btn-ghost btn-block" id="add-lot" style="margin-top:6px">' + Icons.plus + 'Aankoop toevoegen</button>' +
-        '<div class="form-actions"><button type="submit" class="btn btn-gold btn-block">' + (existing ? 'Opslaan' : 'Aanmaken') + '</button></div>' +
-        (existing
-          ? '<button type="button" class="btn btn-danger btn-block" data-del style="margin-top:10px">' + Icons.trash + 'Verwijderen</button>'
-          : '') +
-        '</form>';
+      '<div id="lots-list">' + lots.map((l) => lotRow(l, cur0)).join('') + '</div>' +
+      '<button type="button" class="btn btn-ghost btn-block" id="add-lot" style="margin-top:6px">' + Icons.plus + 'Aankoop toevoegen</button>' +
+      '<div class="form-actions"><button type="submit" class="btn btn-gold btn-block">' + (existing ? 'Opslaan' : 'Aanmaken') + '</button></div>' +
+      (existing
+        ? '<button type="button" class="btn btn-danger btn-block" data-del style="margin-top:10px">' + Icons.trash + 'Verwijderen</button>'
+        : '') +
+      '</form>';
 
       const list = U.qs('#lots-list', sh.body);
       U.qs('#add-lot', sh.body).addEventListener('click', () => {
-        list.insertAdjacentHTML('beforeend', lotRow(null));
+        const curSel = U.qs('[name="currency"]', form || sh.body);
+        list.insertAdjacentHTML('beforeend', lotRow(null, curSel ? curSel.value : cur0));
         bindLotRows(list);
       });
       bindLotRows(list);

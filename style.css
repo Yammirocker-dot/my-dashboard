@@ -3200,6 +3200,8 @@ button.set-row:hover {
 }
 
 .lot-row .input {
+  min-width: 0;
+  width: 100%;
   padding: 9px 10px;
   font-size: 13px;
 }
