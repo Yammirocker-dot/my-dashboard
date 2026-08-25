@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.6.2';
+  const VERSION = '1.7.0';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },

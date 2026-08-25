@@ -118,7 +118,7 @@
       .filter((p) => !p.concept && p.status === 'idea')
       .sort((a, b) => (a.date || '9999-12-31').localeCompare(b.date || '9999-12-31'));
     const ideasHTML = ideas.length
-      ? '<div class="section-row"><h3 class="section-title">Idee\u00EBn <span class="muted">(' + ideas.length + ')</span></h3><span class="muted-sm">niet in je totalen</span></div>' +
+      ? '<div class="section-row"><h3 class="section-title">Op te volgen idee\u00EBn <span class="muted">(' + ideas.length + ')</span></h3><span class="muted-sm">niet in je totalen</span></div>' +
         '<div class="stack-list">' + ideas.map((p) => projRow(p, p.date ? U.parseISO(p.date).getDate() : '\u00B7', p.date ? U.MONTHS_SHORT[U.parseISO(p.date).getMonth()].toUpperCase() : '')).join('') + '</div>'
       : '';
 
@@ -204,7 +204,7 @@
 
     function draw() {
       const list = App.state.data.projects
-        .filter((p) => !p.concept && p.status !== 'paid')
+        .filter((p) => !p.concept && p.status !== 'idea' && p.status !== 'paid')
         .sort((a, b) => (a.date || '9999-12-31').localeCompare(b.date || '9999-12-31'));
       sh.body.innerHTML = list.length
         ? '<p class="sheet-sub">Oudste eerst \u2014 tik op Betaald zodra het geld binnen is.</p>' +
@@ -270,20 +270,39 @@
     );
   }
 
-  function openMonthsSheet(year, buckets) {
-    const sh = Sheet.open({ title: 'Maanden \u00B7 ' + year });
-    const rows = buckets.slice().reverse();
-    const today = U.todayISO();
+  function openMonthsSheet() {
+    const data = App.state.data;
+    const sh = Sheet.open({ title: 'Inkomsten per maand' });
+    const bounds = Stats.dataBounds(data);
+    const rows = bounds.min
+      ? Stats.flatMonths(data, bounds.min, bounds.max)
+          .filter((b) => b.count > 0)
+          .reverse()
+      : [];
+
+    if (!rows.length) {
+      sh.body.innerHTML =
+        '<div class="empty slim"><h3>Nog geen opdrachten</h3><p>Van zodra je opdrachten met datum hebt, vind je hier per maand je inkomsten.</p></div>';
+      return;
+    }
+
     sh.body.innerHTML =
-      '<p class="sheet-sub">Tik op een maand voor de opdrachten en totalen.</p>' +
+      '<p class="sheet-sub">Maanden waarop je opdrachten deed \u2014 tik voor de details.</p>' +
       '<div class="stack-list">' +
       rows.map((b) => {
-        const has = b.income > 0;
-        return has
-          ? '<button type="button" class="set-row" data-month="' + b.key + '"><span class="set-main"><b>' + U.esc(b.label) + '</b><span class="set-sub">' + b.count + ' opdracht' + (b.count === 1 ? '' : 'en') + '</span></span><span class="row-money">' + U.esc(U.fmtMoney(b.income)) + '</span>' + Icons.chevronRight + '</button>'
-          : '<div class="set-row static"><span class="set-main"><b>' + U.esc(b.label) + '</b></span><span class="muted-sm">\u2013</span></div>';
+        const y = b.key.slice(0, 4);
+        const m = Number(b.key.slice(5, 7)) - 1;
+        return (
+          '<button type="button" class="set-row" data-month="' + b.key + '">' +
+          '<span class="set-main"><b>' + U.esc(U.MONTHS_LONG[m]) + ' ' + U.esc(y) + '</b>' +
+          '<span class="set-sub">' + b.count + ' opdracht' + (b.count === 1 ? '' : 'en') + '</span></span>' +
+          '<span class="row-money">' + U.esc(U.fmtMoney(b.income)) + '</span>' +
+          Icons.chevronRight +
+          '</button>'
+        );
       }).join('') +
       '</div>';
+
     U.qsa('[data-month]', sh.body).forEach((btn) =>
       btn.addEventListener('click', () => {
         const key = btn.getAttribute('data-month');
@@ -292,7 +311,7 @@
         const last = new Date(y, m + 1, 0);
         const end = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(last.getDate()).padStart(2, '0');
         sh.close();
-        openIncomeSheet({ start: key + '-01', end: end, label: U.MONTHS_LONG[m] + ' ' + y, _today: today });
+        openIncomeSheet({ start: key + '-01', end: end, label: U.MONTHS_LONG[m] + ' ' + y });
       })
     );
   }
@@ -340,7 +359,12 @@
     const hi = U.qs('[data-action=open-income]', root);
     if (hi) hi.addEventListener('click', () => openIncomeSheet(dashRange()));
     const mc = U.qs('[data-action=open-months]', root);
-    if (mc) mc.addEventListener('click', () => openMonthsSheet(curYear, Stats.monthBuckets(App.state.data, curYear)));
+    if (mc) {
+      mc.addEventListener('click', () => openMonthsSheet());
+      mc.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') openMonthsSheet();
+      });
+    }
   }
 
   window.Views = window.Views || {};

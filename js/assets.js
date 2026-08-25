@@ -112,6 +112,7 @@
         Forms.clearErrors(form);
         const res = Forms.readForm(form, [
           { name: 'name', label: 'Naam', type: 'text', required: true },
+          { name: 'bankId', label: 'Bank', type: 'text' },
           { name: 'balance', label: 'Saldo', type: 'number', required: true }
         ]);
         if (!res.ok) return;
