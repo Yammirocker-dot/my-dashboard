@@ -3117,10 +3117,37 @@ button.set-row:hover {
   margin-left: 4px;
   padding: 1px 6px;
   border-radius: 99px;
-  background: var(--s3);
+  background: rgba(212, 144, 59, 0.16);
+  border: 1px solid rgba(212, 144, 59, 0.35);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
+  color: var(--gold-bright);
+}
+
+.acc-tile.stock {
+  border-color: rgba(212, 144, 59, 0.4);
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(212, 144, 59, 0.1), transparent 55%),
+    var(--s2);
+}
+
+.acc-tile.stock .row-money {
+  color: var(--gold-bright);
+}
+
+.ic-gold svg {
+  color: var(--gold);
+}
+
+.bank-tag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--s3);
+  font-size: 10px;
+  font-weight: 600;
   color: var(--txt2);
 }
 
@@ -3167,6 +3194,16 @@ button.set-row:hover {
 .lot-row .lot-del {
   width: 36px;
   height: 38px;
+}
+
+@media (max-width: 480px) {
+  .lot-row {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .lot-row .lot-date {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Update-overlay */

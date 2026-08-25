@@ -115,10 +115,11 @@
     );
   }
 
-  function stockTile(s, quotes) {
+  function stockTile(s, quotes, banks) {
     const v = stockValue(s, quotes);
     const inv = investedOf(s);
     const sh = sharesOf(s);
+    const bank = (banks || []).find((b) => b.id === s.bankId);
     let sub;
     if (!s.tracked) {
       sub = '<span class="stock-sub">Niet getrackt \u00B7 ' + sh + ' st.</span>';
@@ -130,9 +131,10 @@
       sub = '<span class="stock-sub">' + sh + ' stuks</span>';
     }
     return (
-      '<button type="button" class="acc-tile" data-stock="' + U.esc(s.id) + '">' +
+      '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
       '<span class="acc-name">' + U.esc(s.name) + ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span></span>' +
       '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(v.value)) + '</span>' +
+      '<span class="stock-sub"><span class="bank-tag">' + U.esc(bank ? bank.name : 'Geen bank') + '</span></span>' +
       sub +
       '</button>'
     );
@@ -180,7 +182,7 @@
       const trackedCount = stocksList.filter((s) => s.tracked).length;
       stocksHTML =
         '<div class="bank-group" id="stocks-section">' +
-        '<div class="section-row"><h3 class="section-title">' + Icons.chart + ' Aandelen <span class="muted">(' + stocksList.length + ')</span></h3>' +
+        '<div class="section-row"><h3 class="section-title"><span class="ic-gold">' + Icons.chart + '</span> Aandelen <span class="muted">(' + stocksList.length + ')</span></h3>' +
         '<span class="bank-sum">' + U.esc(U.fmtMoney(stockTotal)) + '</span>' +
         '<button type="button" class="icon-btn" data-add-stock aria-label="Aandeel toevoegen">' + Icons.plus + '</button>' +
         (trackedCount
@@ -188,7 +190,7 @@
           : '') +
         '</div>' +
         (stocksList.length
-          ? '<div class="acc-grid">' + stocksList.map((s) => stockTile(s, quotes)).join('') + '</div>'
+          ? '<div class="acc-grid">' + stocksList.map((s) => stockTile(s, quotes, banks)).join('') + '</div>'
           : '<p class="muted-sm">Voeg je eerste aandeel toe met het + icoontje.</p>') +
         (trackedCount ? '<p class="quote-note">Koersen via Yahoo Finance \u00B7 tik op ' + Icons.trendingUp + ' om te verversen</p>' : '') +
         '</div>';
@@ -242,97 +244,110 @@
   }
 
   function stockSheet(existing, onDone) {
-    const sh = Sheet.open({ title: existing ? 'Aandeel bewerken' : 'Nieuw aandeel' });
-    const lots = existing && Array.isArray(existing.lots) ? existing.lots.slice() : [];
-    sh.body.innerHTML =
-      '<form class="form" novalidate>' +
-      Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', value: existing ? existing.name : '', placeholder: 'bv. Take-Two Interactive' }) +
-      Forms.fieldRow({ name: 'ticker', label: 'Ticker (afkorting)', type: 'text', value: existing ? existing.ticker : '', placeholder: 'bv. TTWO' }) +
-      '<div class="set-row static"><span class="set-main"><b>Live koers volgen</b><span class="set-sub">Waarde = aantal stuks \u00D7 actuele prijs</span></span>' +
-      '<select id="stock-tracked" class="ob-input" aria-label="Live volgen">' +
-      '<option value="ja"' + (!existing || existing.tracked ? ' selected' : '') + '>Ja</option>' +
-      '<option value="nee"' + (existing && !existing.tracked ? ' selected' : '') + '>Nee</option>' +
-      '</select></div>' +
-      '<p class="sheet-hint"><b>Aankopen</b> \u2014 datum, aantal stuks en betaald bedrag:</p>' +
-      '<div id="lots-list">' + lots.map(lotRow).join('') + '</div>' +
-      '<button type="button" class="btn btn-ghost btn-block" id="add-lot" style="margin-top:6px">' + Icons.plus + 'Aankoop toevoegen</button>' +
-      '<div class="form-actions"><button type="submit" class="btn btn-gold btn-block">' + (existing ? 'Opslaan' : 'Aanmaken') + '</button></div>' +
-      (existing
-        ? '<button type="button" class="btn btn-danger btn-block" data-del style="margin-top:10px">' + Icons.trash + 'Verwijderen</button>'
-        : '') +
-      '</form>';
-
-    const list = U.qs('#lots-list', sh.body);
-    U.qs('#add-lot', sh.body).addEventListener('click', () => {
-      list.insertAdjacentHTML('beforeend', lotRow(null));
-      bindLotRows(list);
-    });
-    bindLotRows(list);
-
-    const form = U.qs('form', sh.body);
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      Forms.clearErrors(form);
-      const res = Forms.readForm(form, [
-        { name: 'name', label: 'Naam', type: 'text', required: true },
-        { name: 'ticker', label: 'Ticker', type: 'text', required: true }
-      ]);
-      if (!res.ok) return;
-      const rows = U.qsa('.lot-row', list);
-      const newLots = [];
-      for (const r of rows) {
-        const shares = Number(U.qs('.lot-shares', r).value);
-        const cost = Number(U.qs('.lot-cost', r).value);
-        if (!U.qs('.lot-shares', r).value && !U.qs('.lot-cost', r).value) continue;
-        newLots.push({
-          date: U.qs('.lot-date', r).value || '',
-          shares: isFinite(shares) ? shares : 0,
-          cost: isFinite(cost) ? cost : 0
-        });
-      }
-      if (!newLots.length) {
-        toast('Voeg minstens \u00E9\u00E9n aankoop toe', 'error');
+    getBanks().then((banks) => {
+      if (!banks.length) {
+        toast('Maak eerst een bank aan', 'error');
         return;
       }
-      const tracked = U.qs('#stock-tracked', form).value === 'ja';
-      const stocks = await getStocks();
-      const rec = {
-        id: existing ? existing.id : 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        name: res.values.name,
-        ticker: String(res.values.ticker).toUpperCase(),
-        tracked: tracked,
-        lots: newLots,
-        createdAt: existing ? existing.createdAt : new Date().toISOString()
-      };
-      if (existing) {
-        const i = stocks.findIndex((x) => x.id === existing.id);
-        if (i >= 0) stocks[i] = rec;
-      } else {
-        stocks.push(rec);
-      }
-      await saveStocks(stocks);
-      if (tracked) refreshQuotes(false);
-      sh.close();
-      toast(existing ? 'Aandeel bijgewerkt' : 'Aandeel toegevoegd');
-      if (onDone) onDone();
-    });
+      const sh = Sheet.open({ title: existing ? 'Aandeel bewerken' : 'Nieuw aandeel' });
+      const lots = existing && Array.isArray(existing.lots) ? existing.lots.slice() : [];
+      const bankOpts = banks.map((b) => ({ value: b.id, label: b.name }));
+      sh.body.innerHTML =
+        '<form class="form" novalidate>' +
+        Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', value: existing ? existing.name : '', placeholder: 'bv. Take-Two Interactive' }) +
+        Forms.fieldRow({ name: 'ticker', label: 'Ticker (afkorting)', type: 'text', value: existing ? existing.ticker : '', placeholder: 'bv. TTWO' }) +
+        Forms.fieldRow({ name: 'bankId', label: 'Bank', type: 'select', value: existing ? existing.bankId || '' : '', options: bankOpts }) +
+        '<div class="set-row static"><span class="set-main"><b>Live koers volgen</b><span class="set-sub">Waarde = aantal stuks \u00D7 actuele prijs</span></span>' +
+        '<select id="stock-tracked" class="ob-input" aria-label="Live volgen">' +
+        '<option value="ja"' + (!existing || existing.tracked ? ' selected' : '') + '>Ja</option>' +
+        '<option value="nee"' + (existing && !existing.tracked ? ' selected' : '') + '>Nee</option>' +
+        '</select></div>' +
+        '<p class="sheet-hint"><b>Aankopen</b> \u2014 datum, aantal stuks en betaald bedrag:</p>' +
+        '<div id="lots-list">' + lots.map(lotRow).join('') + '</div>' +
+        '<button type="button" class="btn btn-ghost btn-block" id="add-lot" style="margin-top:6px">' + Icons.plus + 'Aankoop toevoegen</button>' +
+        '<div class="form-actions"><button type="submit" class="btn btn-gold btn-block">' + (existing ? 'Opslaan' : 'Aanmaken') + '</button></div>' +
+        (existing
+          ? '<button type="button" class="btn btn-danger btn-block" data-del style="margin-top:10px">' + Icons.trash + 'Verwijderen</button>'
+          : '') +
+        '</form>';
 
-    const del = U.qs('[data-del]', sh.body);
-    if (del) {
-      del.addEventListener('click', async () => {
-        const ok = await confirmAction({
-          title: 'Aandeel verwijderen?',
-          message: '"' + existing.name + '" en alle aankopen verdwijnen uit je vermogen.',
-          confirmText: 'Verwijderen'
-        });
-        if (!ok) return;
+      const list = U.qs('#lots-list', sh.body);
+      U.qs('#add-lot', sh.body).addEventListener('click', () => {
+        list.insertAdjacentHTML('beforeend', lotRow(null));
+        bindLotRows(list);
+      });
+      bindLotRows(list);
+
+      const form = U.qs('form', sh.body);
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        Forms.clearErrors(form);
+        const res = Forms.readForm(form, [
+          { name: 'name', label: 'Naam', type: 'text', required: true },
+          { name: 'ticker', label: 'Ticker', type: 'text', required: true },
+          { name: 'bankId', label: 'Bank', type: 'text', required: true }
+        ]);
+        if (!res.ok) {
+          toast('Kies een bank voor dit aandeel', 'error');
+          return;
+        }
+        const rows = U.qsa('.lot-row', list);
+        const newLots = [];
+        for (const r of rows) {
+          const shares = Number(U.qs('.lot-shares', r).value);
+          const cost = Number(U.qs('.lot-cost', r).value);
+          if (!U.qs('.lot-shares', r).value && !U.qs('.lot-cost', r).value) continue;
+          newLots.push({
+            date: U.qs('.lot-date', r).value || '',
+            shares: isFinite(shares) ? shares : 0,
+            cost: isFinite(cost) ? cost : 0
+          });
+        }
+        if (!newLots.length) {
+          toast('Voeg minstens \u00E9\u00E9n aankoop toe', 'error');
+          return;
+        }
+        const tracked = U.qs('#stock-tracked', form).value === 'ja';
         const stocks = await getStocks();
-        await saveStocks(stocks.filter((s) => s.id !== existing.id));
+        const rec = {
+          id: existing ? existing.id : 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          name: res.values.name,
+          ticker: String(res.values.ticker).toUpperCase(),
+          bankId: res.values.bankId || '',
+          tracked: tracked,
+          lots: newLots,
+          createdAt: existing ? existing.createdAt : new Date().toISOString()
+        };
+        if (existing) {
+          const i = stocks.findIndex((x) => x.id === existing.id);
+          if (i >= 0) stocks[i] = rec;
+        } else {
+          stocks.push(rec);
+        }
+        await saveStocks(stocks);
+        if (tracked) refreshQuotes(false);
         sh.close();
-        toast('Aandeel verwijderd');
+        toast(existing ? 'Aandeel bijgewerkt' : 'Aandeel toegevoegd');
         if (onDone) onDone();
       });
-    }
+
+      const del = U.qs('[data-del]', sh.body);
+      if (del) {
+        del.addEventListener('click', async () => {
+          const ok = await confirmAction({
+            title: 'Aandeel verwijderen?',
+            message: '"' + existing.name + '" en alle aankopen verdwijnen uit je vermogen.',
+            confirmText: 'Verwijderen'
+          });
+          if (!ok) return;
+          const stocks = await getStocks();
+          await saveStocks(stocks.filter((s) => s.id !== existing.id));
+          sh.close();
+          toast('Aandeel verwijderd');
+          if (onDone) onDone();
+        });
+      }
+    });
   }
 
   function bindLotRows(list) {
