@@ -29,6 +29,11 @@
       '</select></div>' +
       '</div>' +
 
+      '<h3 class="section-title">Hergeinneringen</h3>' +
+      '<div class="card set-group">' +
+      setRowBtn(Icons.clock, 'Opkomende opdrachten', App.state.settings.notify ? 'Aan \u2014 2 dagen vooraf' : 'Uit', 'notify') +
+      '</div>' +
+
       '<h3 class="section-title">Gegevens</h3>' +
       '<div class="card set-group">' +
       setRowBtn(Icons.download, 'Exporteren', '.json back-up', 'export') +
@@ -243,6 +248,7 @@
         else if (a === 'lock-now') App.lockNow();
         else if (a === 'export') exportData();
         else if (a === 'import') pickImportFile();
+        else if (a === 'notify') toggleNotify();
         else if (a === 'reset') resetFlow();
         else if (a === 'check-updates') checkForUpdates(b);
       })
@@ -295,6 +301,78 @@
       toast('Naam opgeslagen');
       App.refresh();
     });
+  }
+
+  function notifySupported() {
+    return typeof window.Notification !== 'undefined' && navigator.serviceWorker;
+  }
+
+  async function toggleNotify() {
+    if (!notifySupported()) {
+      toast('Meldingen werken alleen als de app op je beginscherm staat', 'error');
+      return;
+    }
+    if ((await DB.getSetting('notify', null)) === 'on') {
+      await DB.setSetting('notify', 'off');
+      toast('Hergeinneringen uitgeschakeld');
+      App.refresh();
+      return;
+    }
+    let perm = Notification.permission;
+    if (perm === 'default') perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      toast('Sta meldingen eerst toe in je toestelinstellingen', 'error');
+      return;
+    }
+    await DB.setSetting('notify', 'on');
+    toast('Aan \u2014 je krijgt tot 2 dagen voor elke opdracht een seintje');
+    App.refresh();
+  }
+
+  async function checkUpcoming() {
+    try {
+      if (!notifySupported()) return;
+      if (Notification.permission !== 'granted') return;
+      if ((await DB.getSetting('notify', null)) !== 'on') return;
+      const projects = (App.state.data && App.state.data.projects) || [];
+      const today = U.parseISO(U.todayISO());
+      const ymd = U.todayISO();
+      let store = {};
+      try { store = JSON.parse(localStorage.getItem('vhx_notified') || '{}'); } catch (e) {}
+      const done = Array.isArray(store[ymd]) ? store[ymd] : [];
+      let changed = false;
+
+      let reg = null;
+      try { reg = await navigator.serviceWorker.getRegistration(); } catch (e) {}
+      function fire(title, body, tag) {
+        if (reg && reg.showNotification) reg.showNotification(title, { body, tag, icon: './icons/icon-192.png' });
+        else new Notification(title, { body, tag });
+      }
+
+      for (const p of projects) {
+        if (!p || !p.date) continue;
+        if (p.status !== 'planned' && p.status !== 'filming') continue;
+        const d = U.parseISO(p.date);
+        if (!d) continue;
+        const diff = Math.round((d - today) / 86400000);
+        if (diff < 0 || diff > 2) continue;
+        const key = p.id + '@' + p.date;
+        if (done.indexOf(key) >= 0) continue;
+        const wanneer = diff === 0 ? 'Vandaag' : diff === 1 ? 'Morgen' : 'Overmorgen';
+        fire(
+          wanneer + ' om 10u00: ' + p.name,
+          (p.client ? 'Opdracht bij ' + p.client + '. ' : '') + 'Bereid alles voor: materiaal, batterijen, verplaatsing\u2026',
+          key
+        );
+        done.push(key);
+        changed = true;
+      }
+      if (changed) {
+        store = {};
+        store[ymd] = done;
+        localStorage.setItem('vhx_notified', JSON.stringify(store));
+      }
+    } catch (e) {}
   }
 
   async function backupPayload() {
@@ -499,7 +577,7 @@
     });
   }
 
-  window.More = { openGoalEditor, openNameEditor };
+  window.More = { openGoalEditor, openNameEditor, checkUpcoming };
   window.Views = window.Views || {};
   window.Views.more = renderSettings;
 })();

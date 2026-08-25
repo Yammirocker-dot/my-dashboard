@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.9.8';
+  const VERSION = '1.10.0';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -57,6 +57,7 @@
     state.settings.autoLock = Number(await DB.getSetting('autoLock', 5));
     if (isNaN(state.settings.autoLock)) state.settings.autoLock = 5;
     state.settings.onboarded = !!(await DB.getSetting('onboarded', false));
+    state.settings.notify = (await DB.getSetting('notify', '')) === 'on';
     const tc = await DB.getSetting('themeColor', '');
     state.settings.themeColor = tc || '';
     applyTheme(state.settings.themeColor);
@@ -327,6 +328,16 @@
       Auth.showLock();
     }
     scheduleDayPrompt();
+    scheduleNotifyCheck();
+  }
+
+  function scheduleNotifyCheck(attempt) {
+    const n = attempt || 0;
+    setTimeout(async () => {
+      if (!Auth.isLocked()) {
+        try { if (window.More && typeof More.checkUpcoming === 'function') await More.checkUpcoming(); } catch (e) {}
+      } else if (n < 3) scheduleNotifyCheck(n + 1);
+    }, n === 0 ? 2600 : 9000);
   }
 
   function scheduleDayPrompt(attempt) {
