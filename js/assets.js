@@ -247,11 +247,7 @@
         Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', value: existing ? existing.name : '', placeholder: 'bv. Take-Two Interactive' }) +
         Forms.fieldRow({ name: 'ticker', label: 'Ticker (afkorting)', type: 'text', value: existing ? existing.ticker : '', placeholder: 'bv. TTWO' }) +
         Forms.fieldRow({ name: 'bankId', label: 'Bank', type: 'select', value: existing ? existing.bankId || '' : '', options: bankOpts }) +
-        '<div class="set-row static"><span class="set-main"><b>Live koers volgen</b></span>' +
-        '<select id="stock-tracked" class="ob-input" aria-label="Live volgen">' +
-        '<option value="ja"' + (!existing || existing.tracked ? ' selected' : '') + '>Ja</option>' +
-        '<option value="nee"' + (existing && !existing.tracked ? ' selected' : '') + '>Nee</option>' +
-        '</select></div>' +
+        '<label class="check-row"><input type="checkbox" id="stock-tracked"' + (!existing || existing.tracked ? ' checked' : '') + '><span class="check-label">Live koers volgen</span></label>' +
         '<p class="sheet-hint"><b>Aankopen</b> \u2014 datum, aantal stuks en betaald bedrag:</p>' +
         '<div id="lots-list">' + lots.map(lotRow).join('') + '</div>' +
         '<button type="button" class="btn btn-ghost btn-block" id="add-lot" style="margin-top:6px">' + Icons.plus + 'Aankoop toevoegen</button>' +
@@ -297,7 +293,7 @@
           toast('Voeg minstens \u00E9\u00E9n aankoop toe', 'error');
           return;
         }
-        const tracked = U.qs('#stock-tracked', form).value === 'ja';
+        const tracked = U.qs('#stock-tracked', form).checked;
         const stocks = await getStocks();
         const rec = {
           id: existing ? existing.id : 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),

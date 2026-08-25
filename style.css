@@ -3215,9 +3215,31 @@ button.set-row:hover {
   }
 
   .lot-row .lot-date {
-    grid-column: 1 / -1;
-    max-width: 150px;
+    grid-column: 1 / span 2;
+    max-width: none;
   }
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 12px;
+  cursor: pointer;
+}
+
+.check-row input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--gold);
+  flex: none;
+  margin: 0;
+}
+
+.check-label {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
 }
 
 /* Update-overlay */
