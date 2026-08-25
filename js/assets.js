@@ -26,6 +26,18 @@
     await DB.setSetting('stockQuotes', q);
   }
 
+  function fmtCur(v, cur) {
+    const n = Number(v);
+    if (cur !== 'USD') return U.fmtMoney(n);
+    if (!isFinite(n)) n = 0;
+    const neg = n < -0.0001;
+    const abs = Math.abs(n);
+    const frac = Math.round(abs * 100) % 100 === 0 ? 0 : 2;
+    let s = new Intl.NumberFormat('nl-BE', { minimumFractionDigits: frac, maximumFractionDigits: frac }).format(abs);
+    s = '$' + s;
+    return neg ? '-' + s : s;
+  }
+
   function sharesOf(s) {
     return (s.lots || []).reduce((t, l) => t + (Number(l.shares) || 0), 0);
   }
@@ -34,10 +46,18 @@
   }
   function stockValue(s, quotes) {
     const inv = investedOf(s);
-    if (!s.tracked) return { value: inv, live: false };
-    const q = quotes[String(s.ticker || '').toUpperCase()];
-    if (!q || !q.price) return { value: inv, live: false };
-    return { value: sharesOf(s) * q.price, live: true, price: q.price, ts: q.ts };
+    let native = inv;
+    let live = false;
+    if (s.tracked) {
+      const q = quotes[String(s.ticker || '').toUpperCase()];
+      if (q && q.price) {
+        native = sharesOf(s) * q.price;
+        live = true;
+      }
+    }
+    const usd = s.currency === 'USD';
+    const rate = quotes['USDEUR'] && quotes['USDEUR'].price ? quotes['USDEUR'].price : 0.92;
+    return { native: native, value: usd ? native * rate : native, live: live };
   }
 
   function totalOf(list) {
@@ -87,6 +107,7 @@
     try {
       const stocks = await getStocks();
       const tickers = Array.from(new Set(stocks.filter((s) => s.tracked).map((s) => String(s.ticker).toUpperCase())));
+      const hasUsd = stocks.some((s) => s.tracked && s.currency === 'USD');
       if (!tickers.length) {
         if (verbose) toast('Geen getrackte aandelen');
         return;
@@ -94,12 +115,20 @@
       if (verbose) toast('Koersen ophalen\u2026', 'info');
       const quotes = await getQuotes();
       let ok = 0;
+      const total = tickers.length + (hasUsd ? 1 : 0);
       for (const t of tickers) {
         const q = await fetchQuote(t);
         if (q) { quotes[t] = q; ok++; }
       }
+      if (hasUsd) {
+        const r = await fetchQuote('EURUSD=X');
+        if (r && r.price) {
+          quotes['USDEUR'] = { price: 1 / r.price, ts: r.ts };
+          ok++;
+        }
+      }
       await saveQuotes(quotes);
-      if (verbose) toast(ok === tickers.length ? 'Koersen bijgewerkt' : ok ? ok + '/' + tickers.length + ' koersen opgehaald' : 'Kon koersen niet ophalen (offline?)', ok ? undefined : 'error');
+      if (verbose) toast(ok === total ? 'Koersen bijgewerkt' : ok ? ok + '/' + total + ' koersen opgehaald' : 'Kon koersen niet ophalen (offline?)', ok ? undefined : 'error');
       if (ok && lastRoot) render(lastRoot);
     } catch (e) {
       if (verbose) toast('Kon koersen niet ophalen', 'error');
@@ -119,20 +148,21 @@
     const v = stockValue(s, quotes);
     const inv = investedOf(s);
     const sh = sharesOf(s);
+    const cur = s.currency === 'USD' ? 'USD' : 'EUR';
     let sub;
     if (!s.tracked) {
       sub = '<span class="stock-sub">Niet getrackt \u00B7 ' + sh + ' st.</span>';
     } else if (v.live && inv > 0) {
-      const diff = v.value - inv;
+      const diff = v.native - inv;
       const pct = Math.round((diff / inv) * 1000) / 10;
-      sub = '<span class="stock-sub">' + (diff >= 0 ? '<b class="up">+' : '<b class="down">') + U.esc(U.fmtMoney(diff)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b></span>';
+      sub = '<span class="stock-sub">' + (diff >= 0 ? '<b class="up">+' : '<b class="down">') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b></span>';
     } else {
       sub = '<span class="stock-sub">' + sh + ' stuks</span>';
     }
     return (
       '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
       '<span class="acc-name">' + U.esc(s.name) + ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span></span>' +
-      '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(v.value)) + '</span>' +
+      '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(fmtCur(v.native, cur)) + '</span>' +
       sub +
       '</button>'
     );
@@ -246,6 +276,7 @@
         '<form class="form" novalidate>' +
         Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', value: existing ? existing.name : '', placeholder: 'bv. Take-Two Interactive' }) +
         Forms.fieldRow({ name: 'ticker', label: 'Ticker (afkorting)', type: 'text', value: existing ? existing.ticker : '', placeholder: 'bv. TTWO' }) +
+        Forms.fieldRow({ name: 'currency', label: 'Valuta', type: 'select', value: existing && existing.currency ? existing.currency : 'EUR', options: [{ value: 'EUR', label: 'Euro (\u20AC)' }, { value: 'USD', label: 'Dollar ($)' }] }) +
         Forms.fieldRow({ name: 'bankId', label: 'Bank', type: 'select', value: existing ? existing.bankId || '' : '', options: bankOpts }) +
         '<label class="check-row"><input type="checkbox" id="stock-tracked"' + (!existing || existing.tracked ? ' checked' : '') + '><span class="check-label">Live koers volgen</span></label>' +
         '<p class="sheet-hint"><b>Aankopen</b> \u2014 datum, aantal stuks en betaald bedrag:</p>' +
@@ -271,6 +302,7 @@
         const res = Forms.readForm(form, [
           { name: 'name', label: 'Naam', type: 'text', required: true },
           { name: 'ticker', label: 'Ticker', type: 'text', required: true },
+          { name: 'currency', label: 'Valuta', type: 'text' },
           { name: 'bankId', label: 'Bank', type: 'text', required: true }
         ]);
         if (!res.ok) {
@@ -299,6 +331,7 @@
           id: existing ? existing.id : 'stk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           name: res.values.name,
           ticker: String(res.values.ticker).toUpperCase(),
+          currency: res.values.currency === 'USD' ? 'USD' : 'EUR',
           bankId: res.values.bankId || '',
           tracked: tracked,
           lots: newLots,
