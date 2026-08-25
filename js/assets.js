@@ -240,7 +240,10 @@
     return (
       '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
       '<span class="acc-name">' + U.esc(s.name) + (s.ticker ? ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span>' : '') + '</span>' +
+      '<span class="money-stack">' +
       '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(fmtCur(v.native, cur)) + '</span>' +
+      (cur === 'USD' ? '<span class="row-approx">\u2248 ' + U.esc(fmtCur(v.value, 'EUR')) + '</span>' : '') +
+      '</span>' +
       sub +
       '</button>'
     );
