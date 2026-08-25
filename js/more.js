@@ -196,12 +196,6 @@
     } catch (e3) {}
     setTimeout(() => location.replace('./?force=' + Date.now()), 600);
   }
-    } catch (e) {
-      btn.disabled = false;
-      if (sub) sub.textContent = oldSub;
-      toast(navigator.onLine ? 'Kon niet controleren' : 'Offline \u2014 geen verbinding', 'error');
-    }
-  }
 
   function bindSettings(root) {
     const alSel = U.qs('#autolock-sel', root);
