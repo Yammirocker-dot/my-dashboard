@@ -334,8 +334,8 @@
             finish(true);
             sh.close();
           } else {
-            const errEl = U.qs('.pin-error', pad.el);
-            if (errEl) errEl.textContent = 'Verkeerde code';
+            pad.setError('Verkeerde code');
+            U.vibrate([30, 40, 30]);
           }
         }
       });
