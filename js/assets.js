@@ -89,8 +89,8 @@
 
   let autoFetched = false;
 
-  async function fetchQuote(ticker) {
-    const target = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(ticker) + '?interval=1d&range=1d';
+  async function fetchChart(ticker, range) {
+    const target = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(ticker) + '?interval=1d&range=' + (range || '1d');
     const urls = [
       'https://corsproxy.io/?url=' + encodeURIComponent(target),
       'https://api.allorigins.win/raw?url=' + encodeURIComponent(target)
@@ -101,18 +101,76 @@
         if (!res.ok) continue;
         const j = await res.json();
         const r = j && j.chart && j.chart.result && j.chart.result[0];
-        const meta = r && r.meta;
-        const price = meta && meta.regularMarketPrice != null ? Number(meta.regularMarketPrice) : null;
-        if (price == null || !isFinite(price)) continue;
-        let prev = null;
-        if (meta) {
-          if (meta.chartPreviousClose != null) prev = Number(meta.chartPreviousClose);
-          else if (meta.previousClose != null) prev = Number(meta.previousClose);
-        }
-        return { price: price, prevClose: prev, ts: new Date().toISOString() };
+        if (r) return r;
       } catch (e) {}
     }
     return null;
+  }
+
+  async function fetchQuote(ticker) {
+    const r = await fetchChart(ticker, '1d');
+    if (!r) return null;
+    const meta = r.meta;
+    const price = meta && meta.regularMarketPrice != null ? Number(meta.regularMarketPrice) : null;
+    if (price == null || !isFinite(price)) return null;
+    let prev = null;
+    if (meta) {
+      if (meta.chartPreviousClose != null) prev = Number(meta.chartPreviousClose);
+      else if (meta.previousClose != null) prev = Number(meta.previousClose);
+    }
+    return { price: price, prevClose: prev, ts: new Date().toISOString() };
+  }
+
+  async function fetchFxHistory() {
+    const r = await fetchChart('EURUSD=X', '2y');
+    if (!r || !r.timestamp || !r.indicators || !r.indicators.quote || !r.indicators.quote[0]) return null;
+    const ts = r.timestamp;
+    const closes = r.indicators.quote[0].close || [];
+    const rates = {};
+    let lastGood = null;
+    for (let i = 0; i < ts.length; i++) {
+      const c = closes[i];
+      if (c == null || !isFinite(Number(c)) || Number(c) <= 0) continue;
+      const d = new Date(ts[i] * 1000).toISOString().slice(0, 10);
+      const eurPerUsd = 1 / Number(c);
+      rates[d] = eurPerUsd;
+      lastGood = eurPerUsd;
+    }
+    if (!lastGood) return null;
+    return { rates: rates };
+  }
+
+  function fxOn(quotes, dateStr) {
+    const fx = quotes['FX'];
+    if (!fx || !fx.rates || !dateStr) return null;
+    const rates = fx.rates;
+    if (rates[dateStr]) return rates[dateStr];
+    const keys = Object.keys(rates).sort();
+    let best = null;
+    const limit = new Date(dateStr);
+    limit.setDate(limit.getDate() - 10);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (k <= dateStr) best = rates[k];
+      if (k > dateStr) break;
+    }
+    if (!best) {
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (new Date(k) >= limit) { best = rates[k]; break; }
+      }
+    }
+    return best;
+  }
+
+  function usdEurCost(s, quotes) {
+    if (s.currency !== 'USD') return investedOf(s);
+    return (s.lots || []).reduce((t, l) => {
+      const sh = Number(l.shares) || 0;
+      let r = fxOn(quotes, l.date);
+      if (r == null) r = usdRate(quotes);
+      return t + sh * lotPrice(l) * r;
+    }, 0);
   }
 
   async function refreshQuotes(verbose) {
@@ -138,6 +196,8 @@
           quotes['USDEUR'] = { price: 1 / r.price, ts: r.ts };
           ok++;
         }
+        const fxh = await fetchFxHistory();
+        if (fxh) quotes['FX'] = fxh;
       }
       await saveQuotes(quotes);
       if (verbose) toast(ok === total ? 'Koersen bijgewerkt' : ok ? ok + '/' + total + ' koersen opgehaald' : 'Kon koersen niet ophalen (offline?)', ok ? undefined : 'error');
@@ -170,7 +230,7 @@
       let txt =
         '<b class="' + (diff >= 0 ? 'up">+' : 'down">') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>';
       if (cur === 'USD') {
-        const eurDiff = diff * usdRate(quotes);
+        const eurDiff = v.native * usdRate(quotes) - usdEurCost(s, quotes);
         txt += ' \u00B7 <span class="' + (eurDiff >= 0 ? 'up">' : 'down">') + U.esc(fmtCur(eurDiff, 'EUR')) + '</span>';
       }
       sub = '<span class="stock-sub">' + txt + '</span>';
