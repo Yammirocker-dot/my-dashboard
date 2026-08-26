@@ -247,6 +247,9 @@
     if (!s.tracked) {
       lines.push('<span>Niet getrackt \u00B7 ' + sh + ' st.</span>');
     } else {
+      if (v.live && v.price != null) {
+        lines.push('<span class="pp">1 st \u2248 ' + U.esc(fmtCur(v.price, cur)) + '</span>');
+      }
       if (v.live && inv > 0) {
         const diff = v.native - inv;
         const pct = Math.round((diff / inv) * 1000) / 10;
@@ -266,10 +269,7 @@
     const sub = '<span class="stock-sub stack">' + lines.join('') + '</span>';
     return (
       '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
-      '<span class="name-wrap">' +
       '<span class="acc-name">' + U.esc(s.name) + (s.ticker ? ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span>' : '') + '</span>' +
-      (s.tracked && v.live && v.price != null ? '<span class="pp">1 st \u2248 ' + U.esc(fmtCur(v.price, cur)) + '</span>' : '') +
-      '</span>' +
       '<span class="money-stack">' +
       '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(fmtCur(v.native, cur)) + '</span>' +
       (cur === 'USD' ? '<span class="row-approx">\u2248 ' + U.esc(fmtCur(v.value, 'EUR')) + '</span>' : '') +
@@ -310,7 +310,7 @@
       '<p class="goal-saved"><b>' + U.esc(U.fmtMoney(saved)) + '</b> van ' + U.esc(U.fmtMoney(target)) + '</p>' +
       (lines ? '<div class="alloc-list">' + lines + '</div>' : '<p class="muted-sm">Nog geen geld toegewezen.</p>') +
       '<div class="goal-actions">' +
-      '<button type="button" class="btn btn-gold btn-sm" data-alloc-add="' + U.esc(g.id) + '">' + Icons.euro + 'Toewijzen</button>' +
+      '<button type="button" class="btn btn-gold btn-sm" data-alloc-add="' + U.esc(g.id) + '">Toewijzen</button>' +
       '<button type="button" class="icon-btn" data-goal-edit="' + U.esc(g.id) + '" aria-label="Doel aanpassen">' + Icons.edit + '</button>' +
       '<button type="button" class="icon-btn" data-goal-del="' + U.esc(g.id) + '" aria-label="Doel verwijderen">' + Icons.trash + '</button>' +
       '</div></div>'
@@ -813,14 +813,14 @@
     if (!ctx) return;
     const opts = ctx.accs
       .map((a) => {
-        const free = (Number(a.balance) || 0) - allocForSrc(ctx.allocs, 'acc', a.id);
-        return { v: 'acc:' + a.id, l: a.name + ' (' + U.fmtMoney(free < 0 ? 0 : free) + ' vrij)' };
+        const free = Math.max(0, (Number(a.balance) || 0) - allocForSrc(ctx.allocs, 'acc', a.id));
+        return { value: 'acc:' + a.id, label: a.name + ' \u2014 ' + U.fmtMoney(free) + ' vrij' };
       })
       .concat(
         ctx.stocks.map((s) => {
           const val = stockValue(s, ctx.quotes).value;
-          const free = val - allocForSrc(ctx.allocs, 'stk', s.id);
-          return { v: 'stk:' + s.id, l: s.name + ' (\u2248 ' + U.fmtMoney(free < 0 ? 0 : free) + ' vrij)' };
+          const free = Math.max(0, val - allocForSrc(ctx.allocs, 'stk', s.id));
+          return { value: 'stk:' + s.id, label: s.name + ' \u2014 \u2248 ' + U.fmtMoney(free) + ' vrij' };
         })
       );
     if (!opts.length) {
@@ -852,16 +852,31 @@
         return;
       }
       const parts = String(res.values.src).split(':');
+      const srcType = parts[0];
+      const srcId = parts[1];
       try {
-        const allocs = await getAllocs();
-        allocs.push({
+        const freshAllocs = await getAllocs();
+        let free = 0;
+        if (srcType === 'acc') {
+          const a = ctx.accs.find((x) => x.id === srcId);
+          free = Math.max(0, (Number(a ? a.balance : 0) || 0) - allocForSrc(freshAllocs, 'acc', srcId));
+        } else {
+          const s = ctx.stocks.find((x) => x.id === srcId);
+          const val = s ? stockValue(s, ctx.quotes).value : 0;
+          free = Math.max(0, val - allocForSrc(freshAllocs, 'stk', srcId));
+        }
+        if (amount > free + 0.001) {
+          toast('Meer dan beschikbaar \u2014 max ' + U.fmtMoney(free), 'error');
+          return;
+        }
+        freshAllocs.push({
           id: 'al_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           goalId: goal.id,
-          srcType: parts[0],
-          srcId: parts[1],
+          srcType: srcType,
+          srcId: srcId,
           amount: amount
         });
-        await saveAllocs(allocs);
+        await saveAllocs(freshAllocs);
         sh.close();
         toast(U.fmtMoney(amount) + ' toegewezen aan ' + goal.name);
         if (onDone) onDone();
