@@ -247,9 +247,6 @@
     if (!s.tracked) {
       lines.push('<span>Niet getrackt \u00B7 ' + sh + ' st.</span>');
     } else {
-      if (v.live && v.price != null) {
-        lines.push('<span class="pp">1 st \u2248 ' + U.esc(fmtCur(v.price, cur)) + '</span>');
-      }
       if (v.live && inv > 0) {
         const diff = v.native - inv;
         const pct = Math.round((diff / inv) * 1000) / 10;
@@ -269,7 +266,10 @@
     const sub = '<span class="stock-sub stack">' + lines.join('') + '</span>';
     return (
       '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
+      '<span class="name-wrap">' +
       '<span class="acc-name">' + U.esc(s.name) + (s.ticker ? ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span>' : '') + '</span>' +
+      (s.tracked && v.live && v.price != null ? '<span class="pp">1 st \u2248 ' + U.esc(fmtCur(v.price, cur)) + '</span>' : '') +
+      '</span>' +
       '<span class="money-stack">' +
       '<span class="row-money' + (v.value < 0 ? ' neg' : '') + '">' + U.esc(fmtCur(v.native, cur)) + '</span>' +
       (cur === 'USD' ? '<span class="row-approx">\u2248 ' + U.esc(fmtCur(v.value, 'EUR')) + '</span>' : '') +
@@ -363,11 +363,10 @@
     }
 
     const goalsSection =
-      '<div class="section-row"><h3 class="section-title">Doelen</h3>' +
-      '<button type="button" class="icon-btn" data-goal-add aria-label="Doel toevoegen">' + Icons.plus + '</button></div>' +
+      '<div class="section-row"><h3 class="section-title">Doelen</h3></div>' +
       (goals.length
         ? goals.map((g) => goalCard(g, allocs, accs, stocksList)).join('')
-        : '<p class="muted-sm" style="text-align:center">Nog geen doelen \u2014 tik op + om een doel te maken.</p>');
+        : '<p class="muted-sm" style="text-align:center">Nog geen doelen \u2014 voeg ze toe via de + knop.</p>');
 
     root.innerHTML =
       '<section class="dash fade-in">' +
@@ -721,9 +720,6 @@
     );
     const refreshBtn = U.qs('[data-refresh-stocks]', root);
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshQuotes(true));
-
-    const goalAdd = U.qs('[data-goal-add]', root);
-    if (goalAdd) goalAdd.addEventListener('click', () => goalSheet(null, () => render(lastRoot)));
 
     U.qsa('[data-goal-edit]', root).forEach((b) =>
       b.addEventListener('click', async (e) => {

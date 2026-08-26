@@ -1,4 +1,4 @@
-const CACHE = 'vhxmedia-v1.11.1';
+const CACHE = 'vhxmedia-v1.11.2';
 
 const ASSETS = [
   './',
