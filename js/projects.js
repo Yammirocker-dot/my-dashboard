@@ -208,11 +208,27 @@
       }
     });
 
+    const dateFieldWrap = U.qs('[data-field="date"]', sh.body);
+    const statusSel = form.elements['status'];
+    function syncDateRequired() {
+      const need = !!(statusSel && statusSel.value !== 'idea');
+      const lbl = dateFieldWrap ? dateFieldWrap.querySelector('label') : null;
+      if (lbl) lbl.textContent = need ? 'Datum' : 'Datum (optioneel)';
+      const inp = dateFieldWrap ? dateFieldWrap.querySelector('input') : null;
+      if (inp) inp.required = need;
+    }
+    if (statusSel) statusSel.addEventListener('change', syncDateRequired);
+    syncDateRequired();
+
     U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       Forms.clearErrors(form);
-      const res = Forms.readForm(form, cfg);
+      const needDate = !!(statusSel && statusSel.value !== 'idea');
+      const effCfg = needDate
+        ? cfg.map((f) => (f.name === 'date' ? Object.assign({}, f, { required: true, label: 'Datum' }) : f))
+        : cfg;
+      const res = Forms.readForm(form, effCfg);
       if (!res.ok) { toast('Controleer de gemarkeerde velden', 'error'); return; }
       const v = res.values;
       const nowIso = new Date().toISOString();

@@ -384,12 +384,15 @@
     const S = App.state;
     return {
       app: 'vhxmedia-dashboard',
-      formatVersion: 3,
+      formatVersion: 4,
       exportedAt: new Date().toISOString(),
       projects: S.data.projects,
       banks: (await DB.getSetting('banks', [])) || [],
       accounts: (await DB.getSetting('accounts', [])) || [],
       stocks: (await DB.getSetting('stocks', [])) || [],
+      goals: (await DB.getSetting('goals', [])) || [],
+      goalAllocs: (await DB.getSetting('goalAllocs', [])) || [],
+      meetings: await DB.getAll('meetings'),
       settings: {
         goal: S.settings.goal || 0,
         userName: S.settings.userName || 'Liam',
@@ -493,6 +496,59 @@
     return out;
   }
 
+  function sanitizeMeetings(list) {
+    const out = [];
+    for (const m of list) {
+      if (!m || typeof m !== 'object' || !m.subject || !m.date) continue;
+      out.push({
+        id: typeof m.id === 'string' && m.id ? m.id : 'mt_' + U.uid(),
+        subject: String(m.subject),
+        client: String(m.client || ''),
+        date: String(m.date),
+        time: /^\d{1,2}:\d{2}/.test(String(m.time || '')) ? String(m.time) : '10:00',
+        notes: String(m.notes || ''),
+        createdAt: typeof m.createdAt === 'string' ? m.createdAt : new Date().toISOString()
+      });
+    }
+    return out;
+  }
+
+  function sanitizeGoals(list) {
+    const out = [];
+    for (const g of list) {
+      if (!g || typeof g !== 'object' || !g.name) continue;
+      const t = Number(g.target);
+      out.push({
+        id: typeof g.id === 'string' && g.id ? g.id : 'goal_' + U.uid(),
+        name: String(g.name),
+        target: t > 0 ? t : 0,
+        createdAt: typeof g.createdAt === 'string' ? g.createdAt : new Date().toISOString()
+      });
+    }
+    return out;
+  }
+
+  function sanitizeAllocs(list, goalIds, accIds, stkIds) {
+    const out = [];
+    for (const a of list) {
+      if (!a || typeof a !== 'object') continue;
+      const amt = Number(a.amount);
+      if (!(amt > 0)) continue;
+      if (goalIds.indexOf(a.goalId) === -1) continue;
+      if (a.srcType !== 'acc' && a.srcType !== 'stk') continue;
+      const ids = a.srcType === 'acc' ? accIds : stkIds;
+      if (ids.indexOf(a.srcId) === -1) continue;
+      out.push({
+        id: typeof a.id === 'string' && a.id ? a.id : 'al_' + U.uid(),
+        goalId: a.goalId,
+        srcType: a.srcType,
+        srcId: a.srcId,
+        amount: amt
+      });
+    }
+    return out;
+  }
+
   async function importData(file) {
     let parsed;
     try {
@@ -509,15 +565,28 @@
     const banks = Array.isArray(parsed.banks) ? sanitizeBanks(parsed.banks) : [];
     const accounts = Array.isArray(parsed.accounts) ? sanitizeAccounts(parsed.accounts) : [];
     const stocks = Array.isArray(parsed.stocks) ? sanitizeStocks(parsed.stocks) : [];
+    const meetings = Array.isArray(parsed.meetings) ? sanitizeMeetings(parsed.meetings) : [];
+    const goals = Array.isArray(parsed.goals) ? sanitizeGoals(parsed.goals) : [];
+    const goalAllocs = Array.isArray(parsed.goalAllocs)
+      ? sanitizeAllocs(
+          parsed.goalAllocs,
+          goals.map((g) => g.id),
+          accounts.map((a) => a.id),
+          stocks.map((s) => s.id)
+        )
+      : [];
 
     const delen = [projects.length + ' opdrachten'];
+    if (meetings.length) delen.push(meetings.length + ' meetings');
     if (banks.length) delen.push(banks.length + ' banken');
     if (accounts.length) delen.push(accounts.length + ' rekeningen');
     if (stocks.length) delen.push(stocks.length + ' aandelen');
+    if (goals.length) delen.push(goals.length + ' doelen');
+    if (goalAllocs.length) delen.push(goalAllocs.length + ' toewijzingen');
 
     const ok = await confirmAction({
       title: 'Gegevens importeren',
-      message: projects.length === 0 && !banks.length && !accounts.length && !stocks.length
+      message: delen.every((d) => d.startsWith('0 '))
         ? 'Dit back-upbestand bevat geen gegevens. Bestaande gegevens blijven ongewijzigd.'
         : 'Er worden toegevoegd of bijgewerkt: ' + delen.join(', ') + '. Bestaande gegevens blijven behouden.',
       confirmText: 'Importeren',
@@ -543,6 +612,11 @@
       if (banks.length) await DB.setSetting('banks', banks);
       if (accounts.length) await DB.setSetting('accounts', accounts);
       if (stocks.length) await DB.setSetting('stocks', stocks);
+      if (goals.length) await DB.setSetting('goals', goals);
+      if (goalAllocs.length) await DB.setSetting('goalAllocs', goalAllocs);
+      for (const m of meetings) {
+        await DB.put('meetings', m);
+      }
       await App.reloadAll();
       App.refresh();
       toast(delen.join(', ') + ' ge\u00EFmporteerd');
@@ -569,7 +643,7 @@
     go.addEventListener('click', async () => {
       go.disabled = true;
       try {
-        for (const s of ['projects', 'clients', 'otherIncome', 'expenses', 'events', 'settings']) {
+        for (const s of ['projects', 'clients', 'otherIncome', 'expenses', 'events', 'meetings', 'settings']) {
           await DB.clear(s);
         }
         await Auth.refreshConfigured();

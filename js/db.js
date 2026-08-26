@@ -1,6 +1,6 @@
 (function () {
   const NAME = 'vhxmedia';
-  const VERSION = 1;
+  const VERSION = 2;
   let dbPromise = null;
 
   function open() {
@@ -31,6 +31,10 @@
         }
         if (!db.objectStoreNames.contains('events')) {
           const s = db.createObjectStore('events', { keyPath: 'id' });
+          s.createIndex('date', 'date');
+        }
+        if (!db.objectStoreNames.contains('meetings')) {
+          const s = db.createObjectStore('meetings', { keyPath: 'id' });
           s.createIndex('date', 'date');
         }
         if (!db.objectStoreNames.contains('settings')) {

@@ -25,6 +25,26 @@
   async function saveQuotes(q) {
     await DB.setSetting('stockQuotes', q);
   }
+  async function getGoals() {
+    return (await DB.getSetting('goals', null)) || [];
+  }
+  async function saveGoals(list) {
+    await DB.setSetting('goals', list);
+  }
+  async function getAllocs() {
+    return (await DB.getSetting('goalAllocs', null)) || [];
+  }
+  async function saveAllocs(list) {
+    await DB.setSetting('goalAllocs', list);
+  }
+
+  function allocForGoal(allocs, gid) {
+    return allocs.filter((a) => a.goalId === gid).reduce((t, a) => t + (Number(a.amount) || 0), 0);
+  }
+
+  function allocForSrc(allocs, type, id) {
+    return allocs.filter((a) => a.srcType === type && a.srcId === id).reduce((t, a) => t + (Number(a.amount) || 0), 0);
+  }
 
   function fmtCur(v, cur) {
     const n = Number(v);
@@ -77,8 +97,8 @@
   }
 
   function render(root) {
-    Promise.all([getAccs(), getBanks(), getStocks(), getQuotes()]).then(([accs, banks, stocks, quotes]) => {
-      draw(root, accs, banks, stocks, quotes);
+    Promise.all([getAccs(), getBanks(), getStocks(), getQuotes(), getGoals(), getAllocs()]).then(([accs, banks, stocks, quotes, goals, allocs]) => {
+      draw(root, accs, banks, stocks, quotes, goals, allocs);
       const tickers = Array.from(new Set((stocks || []).filter((s) => s.tracked).map((s) => String(s.ticker).toUpperCase())));
       if (tickers.length && !autoFetched) {
         autoFetched = true;
@@ -207,39 +227,46 @@
     }
   }
 
-  function accTile(a) {
+  function accTile(a, allocated) {
+    const unalloc = (Number(a.balance) || 0) - (allocated || 0);
     return (
       '<button type="button" class="acc-tile" data-acc="' + U.esc(a.id) + '">' +
       '<span class="acc-name">' + U.esc(a.name) + '</span>' +
       '<span class="row-money' + ((Number(a.balance) || 0) < 0 ? ' neg' : '') + '">' + U.esc(U.fmtMoney(a.balance)) + '</span>' +
+      ((allocated || 0) > 0 ? '<span class="unalloc">niet toegewezen: ' + U.esc(U.fmtMoney(unalloc < 0 ? 0 : unalloc)) + '</span>' : '') +
       '</button>'
     );
   }
 
-  function stockTile(s, quotes) {
+  function stockTile(s, quotes, allocated) {
     const v = stockValue(s, quotes);
     const inv = investedOf(s);
     const sh = sharesOf(s);
     const cur = s.currency === 'USD' ? 'USD' : 'EUR';
-    let sub;
+    const lines = [];
     if (!s.tracked) {
-      sub = '<span class="stock-sub">Niet getrackt \u00B7 ' + sh + ' st.</span>';
-    } else if (v.live && inv > 0) {
-      const diff = v.native - inv;
-      const pct = Math.round((diff / inv) * 1000) / 10;
-      const main = '<b class="' + (diff >= 0 ? 'up">\u2248 ' : 'down">\u2248 ') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>';
-      if (cur === 'USD') {
-        const eurDiff = v.native * usdRate(quotes) - usdEurCost(s, quotes);
-        sub =
-          '<span class="stock-sub stack">' + main +
-          '<span class="' + (eurDiff >= 0 ? 'up">' : 'down">') + U.esc('\u2248 ' + fmtCur(eurDiff, 'EUR')) + '</span>' +
-          '</span>';
-      } else {
-        sub = '<span class="stock-sub">' + main + '</span>';
-      }
+      lines.push('<span>Niet getrackt \u00B7 ' + sh + ' st.</span>');
     } else {
-      sub = '<span class="stock-sub">' + sh + ' stuks</span>';
+      if (v.live && v.price != null) {
+        lines.push('<span class="pp">1 st \u2248 ' + U.esc(fmtCur(v.price, cur)) + '</span>');
+      }
+      if (v.live && inv > 0) {
+        const diff = v.native - inv;
+        const pct = Math.round((diff / inv) * 1000) / 10;
+        lines.push('<b class="' + (diff >= 0 ? 'up">\u2248 ' : 'down">\u2248 ') + U.esc(fmtCur(diff, cur)) + ' (' + (pct >= 0 ? '+' : '') + pct + '%)</b>');
+        if (cur === 'USD') {
+          const eurDiff = v.native * usdRate(quotes) - usdEurCost(s, quotes);
+          lines.push('<span class="' + (eurDiff >= 0 ? 'up">' : 'down">') + U.esc('\u2248 ' + fmtCur(eurDiff, 'EUR')) + '</span>');
+        }
+      } else {
+        lines.push('<span>' + sh + ' stuks</span>');
+      }
     }
+    if ((allocated || 0) > 0) {
+      const rem = v.value - allocated;
+      lines.push('<span class="unalloc">niet toegewezen: \u2248 ' + U.esc(U.fmtMoney(rem < 0 ? 0 : rem)) + '</span>');
+    }
+    const sub = '<span class="stock-sub stack">' + lines.join('') + '</span>';
     return (
       '<button type="button" class="acc-tile stock" data-stock="' + U.esc(s.id) + '">' +
       '<span class="acc-name">' + U.esc(s.name) + (s.ticker ? ' <span class="ticker-chip">' + U.esc(String(s.ticker).toUpperCase()) + '</span>' : '') + '</span>' +
@@ -253,9 +280,46 @@
   }
 
   let lastRoot = null;
+  let lastCtx = null;
 
-  function draw(root, accs, banks, stocks, quotes) {
+  function srcName(a, accs, stocks) {
+    if (a.srcType === 'stk') {
+      const s = (stocks || []).find((x) => x.id === a.srcId);
+      return s ? s.name : 'Aandeel';
+    }
+    const acc = (accs || []).find((x) => x.id === a.srcId);
+    return acc ? acc.name : 'Rekening';
+  }
+
+  function goalCard(g, allocs, accs, stocks) {
+    const saved = allocForGoal(allocs, g.id);
+    const target = Number(g.target) || 0;
+    const pct = target > 0 ? Math.min(100, Math.round((saved / target) * 100)) : 0;
+    const mine = allocs.filter((a) => a.goalId === g.id);
+    const lines = mine
+      .map((a) =>
+        '<div class="alloc-line"><span class="alloc-src">' + U.esc(srcName(a, accs, stocks)) + '</span>' +
+        '<span class="alloc-amt">' + U.esc(U.fmtMoney(a.amount)) +
+        '<button type="button" class="iv-del" data-alloc-del="' + U.esc(a.id) + '" aria-label="Toewijzing verwijderen">' + Icons.trash + '</button></span></div>')
+      .join('');
+    return (
+      '<div class="card goal-tile">' +
+      '<div class="goal-top"><span class="goal-name">' + U.esc(g.name) + '</span>' +
+      '<span class="goal-pct2">' + pct + '%</span></div>' +
+      '<div class="progress slim"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+      '<p class="goal-saved"><b>' + U.esc(U.fmtMoney(saved)) + '</b> van ' + U.esc(U.fmtMoney(target)) + '</p>' +
+      (lines ? '<div class="alloc-list">' + lines + '</div>' : '<p class="muted-sm">Nog geen geld toegewezen.</p>') +
+      '<div class="goal-actions">' +
+      '<button type="button" class="btn btn-gold btn-sm" data-alloc-add="' + U.esc(g.id) + '">' + Icons.euro + 'Toewijzen</button>' +
+      '<button type="button" class="icon-btn" data-goal-edit="' + U.esc(g.id) + '" aria-label="Doel aanpassen">' + Icons.edit + '</button>' +
+      '<button type="button" class="icon-btn" data-goal-del="' + U.esc(g.id) + '" aria-label="Doel verwijderen">' + Icons.trash + '</button>' +
+      '</div></div>'
+    );
+  }
+
+  function draw(root, accs, banks, stocks, quotes, goals, allocs) {
     lastRoot = root;
+    lastCtx = { accs: accs || [], banks: banks || [], stocks: stocks || [], quotes: quotes || {}, goals: goals || [], allocs: allocs || [] };
     const cash = totalOf(accs);
     const stocksList = stocks || [];
     let stockTotal = 0;
@@ -278,8 +342,8 @@
         '</div>' +
         (list.length || bStocks.length
           ? '<div class="acc-grid">' +
-            list.map(accTile).join('') +
-            bStocks.map((s) => stockTile(s, quotes)).join('') +
+            list.map((a) => accTile(a, allocForSrc(allocs, 'acc', a.id))).join('') +
+            bStocks.map((s) => stockTile(s, quotes, allocForSrc(allocs, 'stk', s.id))).join('') +
             '</div>'
           : '<p class="muted-sm">Nog geen rekeningen bij deze bank.</p>') +
         '</div>';
@@ -293,10 +357,17 @@
           ? '<div class="section-row"><h3 class="section-title">Zonder bank <span class="muted">(' + (loose.length + looseStocks.length) + ')</span></h3><span class="bank-sum">' + U.esc(U.fmtMoney(totalOf(loose))) + '</span></div>'
           : '') +
         '<div class="acc-grid">' +
-        loose.map(accTile).join('') +
-        looseStocks.map((s) => stockTile(s, quotes)).join('') +
+        loose.map((a) => accTile(a, allocForSrc(allocs, 'acc', a.id))).join('') +
+        looseStocks.map((s) => stockTile(s, quotes, allocForSrc(allocs, 'stk', s.id))).join('') +
         '</div></div>';
     }
+
+    const goalsSection =
+      '<div class="section-row"><h3 class="section-title">Doelen</h3>' +
+      '<button type="button" class="icon-btn" data-goal-add aria-label="Doel toevoegen">' + Icons.plus + '</button></div>' +
+      (goals.length
+        ? goals.map((g) => goalCard(g, allocs, accs, stocksList)).join('')
+        : '<p class="muted-sm" style="text-align:center">Nog geen doelen \u2014 tik op + om een doel te maken.</p>');
 
     root.innerHTML =
       '<section class="dash fade-in">' +
@@ -317,6 +388,7 @@
       (!groupsHTML
         ? '<p class="muted-sm" style="margin-top:14px;text-align:center">Gebruik de + knop om een bank en rekening toe te voegen.</p>'
         : '') +
+      goalsSection +
       (trackedCount
         ? '<p class="approx-note">* Winsten en rendementen van getrackte aandelen zijn bij benadering: berekend op basis van de laatst beschikbare koers- en wisselgegevens.</p>'
         : '') +
@@ -647,6 +719,158 @@
     );
     const refreshBtn = U.qs('[data-refresh-stocks]', root);
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshQuotes(true));
+
+    const goalAdd = U.qs('[data-goal-add]', root);
+    if (goalAdd) goalAdd.addEventListener('click', () => goalSheet(null, () => render(lastRoot)));
+
+    U.qsa('[data-goal-edit]', root).forEach((b) =>
+      b.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const goals = await getGoals();
+        const g = goals.find((x) => x.id === b.getAttribute('data-goal-edit'));
+        if (g) goalSheet(g, () => render(lastRoot));
+      })
+    );
+
+    U.qsa('[data-goal-del]', root).forEach((b) =>
+      b.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = b.getAttribute('data-goal-del');
+        const goals = await getGoals();
+        await saveGoals(goals.filter((g) => g.id !== id));
+        const allocs = await getAllocs();
+        await saveAllocs(allocs.filter((a) => a.goalId !== id));
+        toast('Doel verwijderd');
+        render(lastRoot);
+      })
+    );
+
+    U.qsa('[data-alloc-add]', root).forEach((b) =>
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ctx = lastCtx;
+        if (!ctx) return;
+        const g = ctx.goals.find((x) => x.id === b.getAttribute('data-alloc-add'));
+        if (g) allocateSheet(g, () => render(lastRoot));
+      })
+    );
+
+    U.qsa('[data-alloc-del]', root).forEach((b) =>
+      b.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = b.getAttribute('data-alloc-del');
+        const allocs = await getAllocs();
+        await saveAllocs(allocs.filter((a) => a.id !== id));
+        toast('Toewijzing verwijderd');
+        render(lastRoot);
+      })
+    );
+  }
+
+  function goalSheet(existing, onDone) {
+    const sh = Sheet.open({ title: existing ? 'Doel bewerken' : 'Nieuw doel', small: true });
+    sh.body.innerHTML =
+      '<form autocomplete="off">' +
+      Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', required: true, value: existing ? existing.name : '', placeholder: 'bv. Huis' }) +
+      Forms.fieldRow({ name: 'target', label: 'Doelbedrag (\u20AC)', type: 'number', required: true, step: '0.01', min: 0, value: existing && existing.target != null ? String(existing.target) : '', placeholder: 'bv. 40000' }) +
+      '<div class="form-actions column">' +
+      '<button type="submit" class="btn btn-gold btn-block">' + Icons.check + 'Opslaan</button>' +
+      '<button type="button" class="btn btn-ghost btn-block" data-cancel>Annuleren</button>' +
+      '</div></form>';
+    const form = U.qs('form', sh.body);
+    U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      Forms.clearErrors(form);
+      const res = Forms.readForm(form, [
+        { name: 'name', label: 'Naam', type: 'text', required: true },
+        { name: 'target', label: 'Doelbedrag', type: 'number', required: true }
+      ]);
+      if (!res.ok) return;
+      try {
+        const list = await getGoals();
+        const rec = existing
+          ? Object.assign({}, existing)
+          : { id: 'goal_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), createdAt: new Date().toISOString() };
+        rec.name = res.values.name.trim();
+        rec.target = Math.max(0, Number(res.values.target) || 0);
+        if (existing) {
+          const i = list.findIndex((x) => x.id === existing.id);
+          if (i >= 0) list[i] = rec;
+        } else {
+          list.push(rec);
+        }
+        await saveGoals(list);
+        sh.close();
+        toast(existing ? 'Doel bijgewerkt' : 'Doel toegevoegd');
+        if (onDone) onDone();
+      } catch (err) {
+        toast('Opslaan mislukt', 'error');
+      }
+    });
+  }
+
+  function allocateSheet(goal, onDone) {
+    const ctx = lastCtx;
+    if (!ctx) return;
+    const opts = ctx.accs
+      .map((a) => {
+        const free = (Number(a.balance) || 0) - allocForSrc(ctx.allocs, 'acc', a.id);
+        return { v: 'acc:' + a.id, l: a.name + ' (' + U.fmtMoney(free < 0 ? 0 : free) + ' vrij)' };
+      })
+      .concat(
+        ctx.stocks.map((s) => {
+          const val = stockValue(s, ctx.quotes).value;
+          const free = val - allocForSrc(ctx.allocs, 'stk', s.id);
+          return { v: 'stk:' + s.id, l: s.name + ' (\u2248 ' + U.fmtMoney(free < 0 ? 0 : free) + ' vrij)' };
+        })
+      );
+    if (!opts.length) {
+      toast('Maak eerst een rekening of aandeel aan', 'error');
+      return;
+    }
+    const sh = Sheet.open({ title: 'Geld toewijzen \u2014 ' + goal.name, small: true });
+    sh.body.innerHTML =
+      '<form autocomplete="off">' +
+      Forms.fieldRow({ name: 'src', label: 'Bron', type: 'select', options: opts }) +
+      Forms.fieldRow({ name: 'amount', label: 'Bedrag (\u20AC)', type: 'number', required: true, step: '0.01', min: 0, placeholder: 'bv. 2500' }) +
+      '<div class="form-actions column">' +
+      '<button type="submit" class="btn btn-gold btn-block">' + Icons.check + 'Toewijzen</button>' +
+      '<button type="button" class="btn btn-ghost btn-block" data-cancel>Annuleren</button>' +
+      '</div></form>';
+    const form = U.qs('form', sh.body);
+    U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      Forms.clearErrors(form);
+      const res = Forms.readForm(form, [
+        { name: 'src', label: 'Bron', type: 'text' },
+        { name: 'amount', label: 'Bedrag', type: 'number', required: true }
+      ]);
+      if (!res.ok) return;
+      const amount = Number(res.values.amount);
+      if (!(amount > 0)) {
+        toast('Vul een geldig bedrag in', 'error');
+        return;
+      }
+      const parts = String(res.values.src).split(':');
+      try {
+        const allocs = await getAllocs();
+        allocs.push({
+          id: 'al_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          goalId: goal.id,
+          srcType: parts[0],
+          srcId: parts[1],
+          amount: amount
+        });
+        await saveAllocs(allocs);
+        sh.close();
+        toast(U.fmtMoney(amount) + ' toegewezen aan ' + goal.name);
+        if (onDone) onDone();
+      } catch (err) {
+        toast('Toewijzen mislukt', 'error');
+      }
+    });
   }
 
   window.Views = window.Views || {};

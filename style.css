@@ -3218,6 +3218,114 @@ button.set-row:hover {
   color: var(--txt3);
 }
 
+.unalloc {
+  font-size: 11px;
+  color: var(--txt3);
+}
+
+.pp {
+  font-size: 11px;
+  color: var(--txt2);
+}
+
+.dot.meet {
+  background: #6aa9d8;
+}
+
+.meet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6aa9d8;
+  background: rgba(106, 169, 216, 0.14);
+  border-radius: 99px;
+  padding: 3px 9px;
+  font-feature-settings: 'tnum';
+}
+
+.meet-chip svg {
+  width: 12px;
+  height: 12px;
+}
+
+.goal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.goal-name {
+  font-weight: 750;
+  font-size: 15.5px;
+}
+
+.goal-pct2 {
+  font-weight: 800;
+  color: var(--gold);
+  font-size: 14px;
+  font-feature-settings: 'tnum';
+}
+
+.progress.slim {
+  margin-top: 8px;
+  height: 7px;
+}
+
+.goal-saved {
+  margin-top: 9px;
+  font-size: 13px;
+  color: var(--txt2);
+}
+
+.alloc-list {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.alloc-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.alloc-src {
+  color: var(--txt2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alloc-amt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-feature-settings: 'tnum';
+}
+
+.alloc-amt .iv-del svg {
+  width: 15px;
+  height: 15px;
+}
+
+.goal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.goal-actions .btn-sm {
+  flex: 1;
+}
+
 .stock-sub {
   font-size: 11.5px;
   color: var(--txt3);

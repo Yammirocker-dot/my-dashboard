@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.10.4';
+  const VERSION = '1.11.0';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -188,19 +188,38 @@
     state.started = true;
     document.getElementById('version-side').textContent = VERSION;
     buildNav();
+    function quickAdd() {
+      const sh = Sheet.open({ title: 'Wat wil je toevoegen?', small: true });
+      sh.body.innerHTML =
+        '<div class="stack-list">' +
+        '<button type="button" class="set-row" data-q-proj><span class="set-icon">' + Icons.film + '</span>' +
+        '<span class="set-main"><b>Opdracht</b><span class="set-sub">Shoot, montage of project</span></span>' + Icons.chevronRight + '</button>' +
+        '<button type="button" class="set-row" data-q-meet><span class="set-icon">' + Icons.clock + '</span>' +
+        '<span class="set-main"><b>Meeting</b><span class="set-sub">Afspraak met datum en uur</span></span>' + Icons.chevronRight + '</button>' +
+        '</div>';
+      U.qs('[data-q-proj]', sh.body).addEventListener('click', () => {
+        sh.close();
+        Projects.openForm(null);
+      });
+      U.qs('[data-q-meet]', sh.body).addEventListener('click', () => {
+        sh.close();
+        if (window.Meetings) Meetings.openForm(null);
+      });
+    }
+
     document.getElementById('fab').addEventListener('click', () => {
       if (state.route === 'assets') {
         if (window.AssetsAdd) window.AssetsAdd.open();
         return;
       }
-      Projects.openForm(null);
+      quickAdd();
     });
     document.getElementById('sidebar-add').addEventListener('click', () => {
       if (state.route === 'assets') {
         if (window.AssetsAdd) window.AssetsAdd.open();
         return;
       }
-      Projects.openForm(null);
+      quickAdd();
     });
     document.getElementById('btn-lock').addEventListener('click', () => Auth.showLock());
     window.addEventListener('online', updateOnlinePills);
