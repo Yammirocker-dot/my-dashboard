@@ -3224,7 +3224,8 @@ button.set-row:hover {
 }
 
 .pp {
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 650;
   color: var(--txt2);
 }
 

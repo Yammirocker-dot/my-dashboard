@@ -404,10 +404,12 @@
       '<button type="button" class="set-row" data-add-bank><span class="set-icon">' + Icons.database + '</span><span class="set-main"><b>Bank</b><span class="set-sub">bv. KBC, Belfius, Revolut</span></span>' + Icons.chevronRight + '</button>' +
       '<button type="button" class="set-row" data-add-acc><span class="set-icon">' + Icons.wallet + '</span><span class="set-main"><b>Rekening</b><span class="set-sub">bv. Zichtrekening, Spaarrekening</span></span>' + Icons.chevronRight + '</button>' +
       '<button type="button" class="set-row" data-add-stock><span class="set-icon">' + Icons.chart + '</span><span class="set-main"><b>Aandeel</b><span class="set-sub">bv. TTWO, HOWL \u2014 optioneel live koers</span></span>' + Icons.chevronRight + '</button>' +
+      '<button type="button" class="set-row" data-add-goal><span class="set-icon">' + Icons.target + '</span><span class="set-main"><b>Doel</b><span class="set-sub">bv. Huis: \u20AC40.000</span></span>' + Icons.chevronRight + '</button>' +
       '</div>';
     U.qs('[data-add-bank]', sh.body).addEventListener('click', () => { sh.close(); bankSheet(null, () => render(lastRoot)); });
     U.qs('[data-add-acc]', sh.body).addEventListener('click', () => { sh.close(); accSheet(null, () => render(lastRoot)); });
     U.qs('[data-add-stock]', sh.body).addEventListener('click', () => { sh.close(); stockSheet(null, () => render(lastRoot)); });
+    U.qs('[data-add-goal]', sh.body).addEventListener('click', () => { sh.close(); goalSheet(null, () => render(lastRoot)); });
   }
 
   function normLot(l) {
