@@ -3390,6 +3390,7 @@ button.set-row:hover {
 
 .card.goal-tile {
   padding: 12px 14px 10px;
+  margin-top: 10px;
 }
 
 .alloc-hint {

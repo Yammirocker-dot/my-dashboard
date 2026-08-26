@@ -366,7 +366,12 @@
 
       U.qsa('[data-set-status]', sh.body).forEach((b) =>
         b.addEventListener('click', async () => {
-          await App.patchRecord('projects', id, { status: b.getAttribute('data-set-status') });
+          const newStatus = b.getAttribute('data-set-status');
+          if (newStatus !== 'idea' && !p.date) {
+            toast('Voeg eerst een datum toe voordat je de status wijzigt', 'error');
+            return;
+          }
+          await App.patchRecord('projects', id, { status: newStatus });
           draw();
         })
       );
