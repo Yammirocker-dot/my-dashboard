@@ -97,7 +97,7 @@
   }
 
   function render(root) {
-    Promise.all([getAccs(), getBanks(), getStocks(), getQuotes(), getGoals(), getAllocs(), DB.getAll('clients')]).then(([accs, banks, stocks, quotes, goals, allocs, clients]) => {
+    Promise.all([getAccs(), getBanks(), getStocks(), getQuotes(), getGoals(), getAllocs(), DB.getAll('clients').catch(() => [])]).then(([accs, banks, stocks, quotes, goals, allocs, clients]) => {
       draw(root, accs, banks, stocks, quotes, goals, allocs, clients);
       const tickers = Array.from(new Set((stocks || []).filter((s) => s.tracked).map((s) => String(s.ticker).toUpperCase())));
       if (tickers.length && !autoFetched) {
