@@ -806,8 +806,13 @@ svg {
 
 .progress.slim {
   height: 8px;
+  margin-top: 6px;
   border: none;
   background: var(--line);
+}
+
+.goal-done .progress-fill {
+  background: linear-gradient(90deg, #58c08a, #44b07a);
 }
 
 .progress-fill {

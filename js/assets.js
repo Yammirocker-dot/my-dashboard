@@ -317,6 +317,7 @@
       '<div class="goal-top">' +
       '<span class="goal-name"><span class="goal-icon">' + Icons.target + '</span>' + U.esc(g.name) + '</span>' +
       '<span class="goal-pct2">' + (done ? 'Voltooid \u2713' : pct + '%') + '</span></div>' +
+      '<div class="progress slim"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
       '<div class="goal-meta"><span class="goal-amt"><b>' + U.esc(U.fmtMoney(saved)) + '</b> / ' + U.esc(U.fmtMoney(target)) + '</span>' +
       '<span class="goal-remain">' + remainTxt + '</span></div>' +
       (allocLines
