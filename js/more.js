@@ -104,7 +104,7 @@
           const res = await fetch('js/app.js?t=' + Date.now(), { cache: 'no-store' });
           const txt = await res.text();
           const m = txt.match(/const\s+VERSION\s*=\s*'([^']+)'/);
-          if (m && m[1] !== VERSION) found = true;
+          if (m && m[1] !== App.VERSION) found = true;
         } catch (e) {}
       }
 
@@ -112,7 +112,7 @@
       if (sub) sub.textContent = oldSub;
 
       if (!found) {
-        toast('Je hebt de nieuwste versie (' + VERSION + ')');
+        toast('Je hebt de nieuwste versie (' + App.VERSION + ')');
         return;
       }
 
