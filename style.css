@@ -3391,6 +3391,98 @@ button.set-row:hover {
   color: var(--gold);
 }
 
+.det-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.det-numbers {
+  font-size: 18px;
+  color: var(--txt);
+}
+
+.det-badge {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border-radius: 99px;
+  padding: 3px 11px;
+  font-weight: 800;
+  font-size: 13px;
+  font-feature-settings: 'tnum';
+}
+
+.det-badge.det-done {
+  background: rgba(88, 192, 138, 0.15);
+  color: #58c08a;
+}
+
+.det-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.det-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.det-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.det-name {
+  font-size: 13px;
+  color: var(--txt2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.det-amt {
+  flex: none;
+  font-size: 13px;
+  font-weight: 700;
+  font-feature-settings: 'tnum';
+}
+
+.det-bar {
+  height: 5px;
+  background: var(--line);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.det-bar-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.det-pct {
+  font-size: 11px;
+  color: var(--txt3);
+  text-align: right;
+}
+
+.det-remain {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 13px;
+  color: var(--txt2);
+}
+
 .stock-sub {
   font-size: 11.5px;
   color: var(--txt3);

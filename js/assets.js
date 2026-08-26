@@ -312,7 +312,7 @@
     const remain = Math.max(0, target - saved);
     const cls = 'card goal-tile' + (done ? ' goal-done' : '') + (pct >= 75 ? ' goal-hot' : '');
     return (
-      '<div class="' + cls + '">' +
+      '<div class="' + cls + '" data-goal-detail="' + U.esc(g.id) + '">' +
       '<div class="goal-top">' +
       '<span class="goal-name"><span class="goal-icon">' + Icons.target + '</span>' + U.esc(g.name) + '</span>' +
       '<span class="goal-pct2">' + (done ? 'Voltooid \u2713' : pct + '%') + '</span></div>' +
@@ -328,6 +328,54 @@
       '<button type="button" class="icon-btn" data-goal-del="' + U.esc(g.id) + '" aria-label="Doel verwijderen">' + Icons.trash + '</button>' +
       '</div></div>'
     );
+  }
+
+  function detailSheet(goalId) {
+    const ctx = lastCtx;
+    if (!ctx) return;
+    const g = ctx.goals.find((x) => x.id === goalId);
+    if (!g) return;
+    const saved = allocForGoal(ctx.allocs, g.id);
+    const target = Number(g.target) || 0;
+    const pct = target > 0 ? Math.min(100, Math.round((saved / target) * 100)) : 0;
+    const mine = ctx.allocs.filter((a) => a.goalId === g.id);
+    const sh = Sheet.open({ title: g.name, small: false });
+    const rows = mine.map((a) => {
+      const name = srcName(a, ctx.accs, ctx.stocks);
+      const sharePct = saved > 0 ? Math.round((a.amount / saved) * 100) : 0;
+      return (
+        '<div class="det-row">' +
+        '<div class="det-info"><span class="det-name">' + U.esc(name) + '</span>' +
+        '<span class="det-amt">' + U.esc(U.fmtMoney(a.amount)) + '</span></div>' +
+        '<div class="det-bar"><div class="det-bar-fill" style="width:' + sharePct + '%"></div></div>' +
+        '<span class="det-pct">' + sharePct + '%</span></div>'
+      );
+    }).join('');
+    const remain = Math.max(0, target - saved);
+    sh.body.innerHTML =
+      '<div class="det-meta">' +
+      '<div class="det-numbers"><b>' + U.esc(U.fmtMoney(saved)) + '</b> / ' + U.esc(U.fmtMoney(target)) + '</div>' +
+      (pct >= 100
+        ? '<span class="det-badge det-done">Voltooid \u2713</span>'
+        : '<span class="det-badge">' + pct + '%</span>') +
+      '</div>' +
+      '<div class="progress slim" style="margin-top:10px"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+      (mine.length
+        ? '<div class="det-list">' + rows + '</div>'
+        : '<p class="muted-sm" style="text-align:center;margin-top:16px">Nog geen toewijzingen.</p>') +
+      (pct >= 100
+        ? ''
+        : '<div class="det-remain">Nog nodig: <b>' + U.esc(U.fmtMoney(remain)) + '</b></div>') +
+      (pct < 100 ? '<div class="form-actions column" style="margin-top:14px">' +
+        '<button type="button" class="btn btn-gold btn-block" data-det-alloc="' + U.esc(g.id) + '">' + Icons.check + 'Toewijzen</button>' +
+        '</div>' : '') +
+      '<button type="button" class="btn btn-ghost btn-block" data-det-close style="margin-top:8px">Sluiten</button>';
+    U.qs('[data-det-close]', sh.body).addEventListener('click', () => sh.close());
+    const allocBtn = U.qs('[data-det-alloc]', sh.body);
+    if (allocBtn) allocBtn.addEventListener('click', () => {
+      sh.close();
+      allocateSheet(g, () => render(lastRoot));
+    });
   }
 
   function draw(root, accs, banks, stocks, quotes, goals, allocs) {
@@ -733,6 +781,10 @@
     );
     const refreshBtn = U.qs('[data-refresh-stocks]', root);
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshQuotes(true));
+
+    U.qsa('[data-goal-detail]', root).forEach((b) =>
+      b.addEventListener('click', () => detailSheet(b.getAttribute('data-goal-detail')))
+    );
 
     U.qsa('[data-goal-edit]', root).forEach((b) =>
       b.addEventListener('click', async (e) => {
