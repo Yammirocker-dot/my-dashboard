@@ -311,17 +311,17 @@
     const done = pct >= 100;
     const remain = Math.max(0, target - saved);
     const cls = 'card goal-tile' + (done ? ' goal-done' : '') + (pct >= 75 ? ' goal-hot' : '');
+    const remainTxt = done ? '' : ' \u00B7 Nog ' + U.fmtMoney(remain);
     return (
       '<div class="' + cls + '" data-goal-detail="' + U.esc(g.id) + '">' +
       '<div class="goal-top">' +
       '<span class="goal-name"><span class="goal-icon">' + Icons.target + '</span>' + U.esc(g.name) + '</span>' +
       '<span class="goal-pct2">' + (done ? 'Voltooid \u2713' : pct + '%') + '</span></div>' +
-      '<div class="progress slim"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
       '<div class="goal-meta"><span class="goal-amt"><b>' + U.esc(U.fmtMoney(saved)) + '</b> / ' + U.esc(U.fmtMoney(target)) + '</span>' +
-      (done ? '' : '<span class="goal-remain">Nog ' + U.esc(U.fmtMoney(remain)) + '</span>') + '</div>' +
+      '<span class="goal-remain">' + remainTxt + '</span></div>' +
       (allocLines
         ? '<div class="alloc-list">' + allocLines + overflowLine + '</div>'
-        : '<p class="muted-sm" style="margin-top:6px">Nog niets toegewezen.</p>') +
+        : '<p class="muted-sm" style="margin-top:4px">Nog niets toegewezen.</p>') +
       '<div class="goal-actions">' +
       '<button type="button" class="btn btn-gold btn-sm" data-alloc-add="' + U.esc(g.id) + '">Toewijzen</button>' +
       '<button type="button" class="icon-btn" data-goal-edit="' + U.esc(g.id) + '" aria-label="Doel aanpassen">' + Icons.edit + '</button>' +

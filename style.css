@@ -3260,9 +3260,9 @@ button.set-row:hover {
 .goal-name {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-weight: 750;
-  font-size: 15px;
+  font-size: 14.5px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3270,8 +3270,8 @@ button.set-row:hover {
 }
 
 .goal-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   color: var(--gold);
   flex: none;
 }
@@ -3281,9 +3281,9 @@ button.set-row:hover {
   background: var(--gold-dim);
   color: var(--gold);
   border-radius: 99px;
-  padding: 2px 9px;
+  padding: 2px 8px;
   font-weight: 800;
-  font-size: 12px;
+  font-size: 11.5px;
   font-feature-settings: 'tnum';
 }
 
@@ -3296,44 +3296,29 @@ button.set-row:hover {
   box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.18), 0 0 12px -4px rgba(212, 175, 55, 0.15);
 }
 
-.progress.slim {
-  margin-top: 6px;
-  height: 5px;
-  border-radius: 99px;
-}
-
-.progress.slim .progress-fill {
-  border-radius: 99px;
-  transition: width 0.4s ease;
-}
-
-.goal-done .progress-fill {
-  background: linear-gradient(90deg, #58c08a, #44b07a);
-}
-
 .goal-meta {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 5px;
+  gap: 6px;
+  margin-top: 3px;
+  flex-wrap: wrap;
 }
 
 .goal-amt {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--txt2);
   font-feature-settings: 'tnum';
 }
 
 .goal-remain {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--txt3);
 }
 
 .alloc-list {
-  margin-top: 8px;
+  margin-top: 6px;
   border-top: 1px solid var(--line);
-  padding-top: 5px;
+  padding-top: 4px;
 }
 
 .alloc-line {
@@ -3341,8 +3326,8 @@ button.set-row:hover {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  padding: 3px 0;
-  font-size: 12.5px;
+  padding: 2px 0;
+  font-size: 12px;
 }
 
 .alloc-src {
@@ -3358,25 +3343,26 @@ button.set-row:hover {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-weight: 700;
+  font-size: 12px;
   font-feature-settings: 'tnum';
 }
 
 .alloc-amt .iv-del svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .alloc-overflow {
-  padding: 2px 0;
+  padding: 1px 0;
 }
 
 .goal-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 5px;
+  margin-top: 8px;
 }
 
 .goal-actions .btn-sm {
@@ -3384,11 +3370,15 @@ button.set-row:hover {
 }
 
 .goal-actions .icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   background: var(--gold-dim);
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--gold);
+}
+
+.card.goal-tile {
+  padding: 12px 14px 10px;
 }
 
 .det-meta {
