@@ -800,8 +800,18 @@
         e.stopPropagation();
         const id = b.getAttribute('data-goal-del');
         const goals = await getGoals();
-        await saveGoals(goals.filter((g) => g.id !== id));
+        const g = goals.find((x) => x.id === id);
         const allocs = await getAllocs();
+        const allocCount = allocs.filter((a) => a.goalId === id).length;
+        const ok = await confirmAction({
+          title: 'Doel verwijderen',
+          message: 'Weet je zeker dat je "' + (g ? g.name : 'dit doel') + '" wilt verwijderen?' +
+            (allocCount ? '\n\n' + allocCount + ' toewijzing' + (allocCount > 1 ? 'en' : '') + ' worden ook verwijderd.' : ''),
+          confirmText: 'Verwijderen',
+          danger: true
+        });
+        if (!ok) return;
+        await saveGoals(goals.filter((x) => x.id !== id));
         await saveAllocs(allocs.filter((a) => a.goalId !== id));
         toast('Doel verwijderd');
         render(lastRoot);
@@ -876,11 +886,13 @@
   function allocateSheet(goal, onDone) {
     const ctx = lastCtx;
     if (!ctx) return;
+    const freeMap = {};
     const opts = ctx.accs
       .map((a) => {
         const free = Math.max(0, (Number(a.balance) || 0) - allocForSrc(ctx.allocs, 'acc', a.id));
         const bank = ctx.banks.find((b) => b.id === a.bankId);
         const bankTxt = bank ? ' (' + bank.name + ')' : '';
+        freeMap['acc:' + a.id] = free;
         return { value: 'acc:' + a.id, label: a.name + bankTxt + ' \u2014 ' + U.fmtMoney(free) + ' vrij' };
       })
       .concat(
@@ -889,6 +901,7 @@
           const free = Math.max(0, val - allocForSrc(ctx.allocs, 'stk', s.id));
           const bank = ctx.banks.find((b) => b.id === s.bankId);
           const bankTxt = bank ? ' (' + bank.name + ')' : '';
+          freeMap['stk:' + s.id] = free;
           return { value: 'stk:' + s.id, label: s.name + bankTxt + ' \u2014 \u2248 ' + U.fmtMoney(free) + ' vrij' };
         })
       );
@@ -901,11 +914,34 @@
       '<form autocomplete="off">' +
       Forms.fieldRow({ name: 'src', label: 'Bron', type: 'select', options: opts }) +
       Forms.fieldRow({ name: 'amount', label: 'Bedrag (\u20AC)', type: 'number', required: true, step: '0.01', min: 0, placeholder: 'bv. 2500' }) +
+      '<div class="alloc-hint" data-alloc-hint></div>' +
       '<div class="form-actions column">' +
       '<button type="submit" class="btn btn-gold btn-block">' + Icons.check + 'Toewijzen</button>' +
       '<button type="button" class="btn btn-ghost btn-block" data-cancel>Annuleren</button>' +
       '</div></form>';
     const form = U.qs('form', sh.body);
+    const hintEl = U.qs('[data-alloc-hint]', sh.body);
+    const srcEl = U.qs('[name="src"]', sh.body);
+    const amtEl = U.qs('[name="amount"]', sh.body);
+    function updateHint() {
+      const key = srcEl.value;
+      const free = freeMap[key] || 0;
+      const typed = Number(amtEl.value) || 0;
+      if (typed > 0 && typed <= free + 0.001) {
+        const remain = Math.max(0, free - typed);
+        hintEl.textContent = 'Beschikbaar: ' + U.fmtMoney(free) + ' \u2014 na toewijzing: ' + U.fmtMoney(remain);
+        hintEl.className = 'alloc-hint';
+      } else if (typed > free + 0.001) {
+        hintEl.textContent = 'Meer dan beschikbaar \u2014 max ' + U.fmtMoney(free);
+        hintEl.className = 'alloc-hint alloc-hint-warn';
+      } else {
+        hintEl.textContent = 'Beschikbaar: ' + U.fmtMoney(free);
+        hintEl.className = 'alloc-hint';
+      }
+    }
+    srcEl.addEventListener('change', updateHint);
+    amtEl.addEventListener('input', updateHint);
+    updateHint();
     U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
