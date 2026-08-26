@@ -296,19 +296,32 @@
     const target = Number(g.target) || 0;
     const pct = target > 0 ? Math.min(100, Math.round((saved / target) * 100)) : 0;
     const mine = allocs.filter((a) => a.goalId === g.id);
-    const lines = mine
+    const MAX_SHOW = 3;
+    const visible = mine.slice(0, MAX_SHOW);
+    const overflow = mine.length - MAX_SHOW;
+    const allocLines = visible
       .map((a) =>
         '<div class="alloc-line"><span class="alloc-src">' + U.esc(srcName(a, accs, stocks)) + '</span>' +
         '<span class="alloc-amt">' + U.esc(U.fmtMoney(a.amount)) +
         '<button type="button" class="iv-del" data-alloc-del="' + U.esc(a.id) + '" aria-label="Toewijzing verwijderen">' + Icons.trash + '</button></span></div>')
       .join('');
+    const overflowLine = overflow > 0
+      ? '<div class="alloc-overflow muted-sm">+' + overflow + ' meer\u2026</div>'
+      : '';
+    const done = pct >= 100;
+    const remain = Math.max(0, target - saved);
+    const cls = 'card goal-tile' + (done ? ' goal-done' : '') + (pct >= 75 ? ' goal-hot' : '');
     return (
-      '<div class="card goal-tile">' +
-      '<div class="goal-top"><span class="goal-name">' + U.esc(g.name) + '</span>' +
-      '<span class="goal-pct2">' + pct + '%</span></div>' +
+      '<div class="' + cls + '">' +
+      '<div class="goal-top">' +
+      '<span class="goal-name"><span class="goal-icon">' + Icons.target + '</span>' + U.esc(g.name) + '</span>' +
+      '<span class="goal-pct2">' + (done ? 'Voltooid \u2713' : pct + '%') + '</span></div>' +
       '<div class="progress slim"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
-      '<p class="goal-saved"><b>' + U.esc(U.fmtMoney(saved)) + '</b> van ' + U.esc(U.fmtMoney(target)) + '</p>' +
-      (lines ? '<div class="alloc-list">' + lines + '</div>' : '<p class="muted-sm">Nog geen geld toegewezen.</p>') +
+      '<div class="goal-meta"><span class="goal-amt"><b>' + U.esc(U.fmtMoney(saved)) + '</b> / ' + U.esc(U.fmtMoney(target)) + '</span>' +
+      (done ? '' : '<span class="goal-remain">Nog ' + U.esc(U.fmtMoney(remain)) + '</span>') + '</div>' +
+      (allocLines
+        ? '<div class="alloc-list">' + allocLines + overflowLine + '</div>'
+        : '<p class="muted-sm" style="margin-top:6px">Nog niets toegewezen.</p>') +
       '<div class="goal-actions">' +
       '<button type="button" class="btn btn-gold btn-sm" data-alloc-add="' + U.esc(g.id) + '">Toewijzen</button>' +
       '<button type="button" class="icon-btn" data-goal-edit="' + U.esc(g.id) + '" aria-label="Doel aanpassen">' + Icons.edit + '</button>' +

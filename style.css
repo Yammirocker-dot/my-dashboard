@@ -3254,16 +3254,26 @@ button.set-row:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .goal-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 750;
-  font-size: 15.5px;
+  font-size: 15px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.goal-icon svg {
+  width: 16px;
+  height: 16px;
+  color: var(--gold);
+  flex: none;
 }
 
 .goal-pct2 {
@@ -3271,36 +3281,68 @@ button.set-row:hover {
   background: var(--gold-dim);
   color: var(--gold);
   border-radius: 99px;
-  padding: 3px 10px;
+  padding: 2px 9px;
   font-weight: 800;
-  font-size: 12.5px;
+  font-size: 12px;
   font-feature-settings: 'tnum';
 }
 
-.progress.slim {
-  margin-top: 8px;
-  height: 7px;
+.goal-done .goal-pct2 {
+  background: rgba(88, 192, 138, 0.15);
+  color: #58c08a;
 }
 
-.goal-saved {
-  margin-top: 9px;
+.goal-hot {
+  box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.18), 0 0 12px -4px rgba(212, 175, 55, 0.15);
+}
+
+.progress.slim {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 99px;
+}
+
+.progress.slim .progress-fill {
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.goal-done .progress-fill {
+  background: linear-gradient(90deg, #58c08a, #44b07a);
+}
+
+.goal-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.goal-amt {
   font-size: 13px;
   color: var(--txt2);
+  font-feature-settings: 'tnum';
+}
+
+.goal-remain {
+  font-size: 11.5px;
+  color: var(--txt3);
 }
 
 .alloc-list {
-  margin-top: 10px;
+  margin-top: 8px;
   border-top: 1px solid var(--line);
-  padding-top: 6px;
+  padding-top: 5px;
 }
 
 .alloc-line {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 5px 0;
-  font-size: 13px;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 12.5px;
 }
 
 .alloc-src {
@@ -3316,21 +3358,25 @@ button.set-row:hover {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-weight: 700;
   font-feature-settings: 'tnum';
 }
 
 .alloc-amt .iv-del svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
+}
+
+.alloc-overflow {
+  padding: 2px 0;
 }
 
 .goal-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .goal-actions .btn-sm {
@@ -3338,10 +3384,10 @@ button.set-row:hover {
 }
 
 .goal-actions .icon-btn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   background: var(--gold-dim);
-  border-radius: 10px;
+  border-radius: 9px;
   color: var(--gold);
 }
 
