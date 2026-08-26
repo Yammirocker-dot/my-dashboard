@@ -364,8 +364,28 @@
         if (done.indexOf(key) >= 0) continue;
         const wanneer = diff === 0 ? 'Vandaag' : diff === 1 ? 'Morgen' : 'Overmorgen';
         fire(
-          wanneer + ' om 10u00: ' + p.name,
+          wanneer + ': ' + p.name,
           (p.client ? 'Opdracht bij ' + p.client + '. ' : '') + 'Bereid alles voor: materiaal, batterijen, verplaatsing\u2026',
+          key
+        );
+        done.push(key);
+        changed = true;
+      }
+
+      const meetings = await DB.getAll('meetings');
+      for (const m of meetings) {
+        if (!m || !m.date) continue;
+        const d = U.parseISO(m.date);
+        if (!d) continue;
+        const diff = Math.round((d - today) / 86400000);
+        if (diff < 0 || diff > 2) continue;
+        const key = 'mt@' + m.id + '@' + m.date;
+        if (done.indexOf(key) >= 0) continue;
+        const wanneer = diff === 0 ? 'Vandaag' : diff === 1 ? 'Morgen' : 'Overmorgen';
+        const tijd = m.time ? ' om ' + m.time : '';
+        fire(
+          wanneer + tijd + ': ' + m.subject,
+          (m.client ? 'Meeting met ' + m.client + '. ' : '') + (m.notes ? m.notes : 'Bereid de agenda voor.'),
           key
         );
         done.push(key);

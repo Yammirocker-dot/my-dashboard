@@ -317,6 +317,9 @@
       const income = Number(p.income) || 0;
       const h = U.projectHours(p);
       const iph = h > 0 ? income / h : null;
+      const expenses = (App.state.data.expenses || []).filter((e) => e.projectId === id);
+      const totalExp = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const profit = income - totalExp;
 
       sh.body.innerHTML =
         '<div class="detail">' +
@@ -359,6 +362,22 @@
 
         (p.notes ? '<h3 class="section-title">Notities</h3><div class="card detail-card text-block"><p>' + U.esc(p.notes) + '</p></div>' : '') +
 
+        (!p.concept
+          ? '<h3 class="section-title">Uitgaven <span class="muted">' + expenses.length + '</span></h3>' +
+            '<div class="detail-profit"><span>Winst</span><span class="' + (profit >= 0 ? 'profit-pos' : 'profit-neg') + '">' + U.esc(U.fmtMoney(profit)) + '</span></div>' +
+            (expenses.length
+              ? '<div class="stack-list">' + expenses.map((e) =>
+                '<div class="up-row card expense-row">' +
+                '<span class="up-date proj"><b>' + U.parseISO(e.date).getDate() + '</b>' + U.MONTHS_SHORT[U.parseISO(e.date).getMonth()].toUpperCase() + '</span>' +
+                '<span class="row-main"><span class="row-title">' + U.esc(e.description) + '</span></span>' +
+                '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(e.amount)) + '</span>' +
+                '<button type="button" class="icon-btn" data-exp-del="' + U.esc(e.id) + '" aria-label="Uitgave verwijderen">' + Icons.trash + '</button></span>' +
+                '</div>'
+              ).join('') + '</div>'
+              : '<p class="muted-sm">Nog geen uitgaven.</p>') +
+            '<button type="button" class="btn btn-gold btn-block" data-exp-add>' + Icons.plus + 'Uitgave toevoegen</button>'
+          : '') +
+
         '<div class="detail-actions">' +
         '<button class="btn btn-gold" data-edit>' + Icons.edit + 'Bewerken</button>' +
         '<button class="btn btn-danger-ghost" data-del>' + Icons.trash + 'Verwijderen</button>' +
@@ -392,6 +411,22 @@
         await removeProject(id);
         sh.close();
       });
+      const expAdd = U.qs('[data-exp-add]', sh.body);
+      if (expAdd) expAdd.addEventListener('click', () => expenseSheet(id, null, draw));
+      U.qsa('[data-exp-del]', sh.body).forEach((b) =>
+        b.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const ok = await confirmAction({
+            title: 'Uitgave verwijderen',
+            message: 'Deze uitgave wordt verwijderd.',
+            danger: true
+          });
+          if (!ok) return;
+          await DB.delete('expenses', b.getAttribute('data-exp-del'));
+          await App.reloadAll();
+          draw();
+        })
+      );
     }
 
     draw();
@@ -399,6 +434,51 @@
 
   function mrow(icon, label, value) {
     return '<div class="meta-row"><span class="meta-icon">' + icon + '</span><span class="meta-label">' + label + '</span><span class="meta-value">' + value + '</span></div>';
+  }
+
+  function expenseSheet(projectId, existing, onDone) {
+    const sh = Sheet.open({ title: existing ? 'Uitgave bewerken' : 'Nieuwe uitgave', small: true });
+    const vals = existing
+      ? { description: existing.description || '', amount: String(existing.amount || ''), date: existing.date || U.todayISO() }
+      : { description: '', amount: '', date: U.todayISO() };
+    sh.body.innerHTML =
+      '<form autocomplete="off">' +
+      Forms.fieldRow({ name: 'description', label: 'Omschrijving', type: 'text', required: true, value: vals.description, placeholder: 'bv. Huur materiaal' }) +
+      Forms.fieldRow({ name: 'amount', label: 'Bedrag (\u20AC)', type: 'number', required: true, step: '0.01', min: 0, value: vals.amount, placeholder: '0,00' }) +
+      Forms.fieldRow({ name: 'date', label: 'Datum', type: 'date', required: true, value: vals.date }) +
+      '<div class="form-actions column">' +
+      '<button type="submit" class="btn btn-gold btn-block">' + Icons.check + (existing ? 'Bijwerken' : 'Toevoegen') + '</button>' +
+      '<button type="button" class="btn btn-ghost btn-block" data-cancel>Annuleren</button>' +
+      '</div></form>';
+    const form = U.qs('form', sh.body);
+    U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      Forms.clearErrors(form);
+      const res = Forms.readForm(form, [
+        { name: 'description', label: 'Omschrijving', type: 'text', required: true },
+        { name: 'amount', label: 'Bedrag', type: 'number', required: true },
+        { name: 'date', label: 'Datum', type: 'date', required: true }
+      ]);
+      if (!res.ok) { toast('Controleer de gemarkeerde velden', 'error'); return; }
+      const rec = {
+        id: existing ? existing.id : 'exp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        projectId: projectId,
+        description: String(res.values.description),
+        amount: Number(res.values.amount),
+        date: String(res.values.date),
+        createdAt: existing ? existing.createdAt : new Date().toISOString()
+      };
+      try {
+        await DB.put('expenses', rec);
+        await App.reloadAll();
+        sh.close();
+        toast(existing ? 'Uitgave bijgewerkt' : 'Uitgave toegevoegd');
+        if (onDone) onDone();
+      } catch (err) {
+        toast('Opslaan mislukt', 'error');
+      }
+    });
   }
 
   async function removeProject(id) {

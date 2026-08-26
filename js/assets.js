@@ -97,8 +97,8 @@
   }
 
   function render(root) {
-    Promise.all([getAccs(), getBanks(), getStocks(), getQuotes(), getGoals(), getAllocs()]).then(([accs, banks, stocks, quotes, goals, allocs]) => {
-      draw(root, accs, banks, stocks, quotes, goals, allocs);
+    Promise.all([getAccs(), getBanks(), getStocks(), getQuotes(), getGoals(), getAllocs(), DB.getAll('clients')]).then(([accs, banks, stocks, quotes, goals, allocs, clients]) => {
+      draw(root, accs, banks, stocks, quotes, goals, allocs, clients);
       const tickers = Array.from(new Set((stocks || []).filter((s) => s.tracked).map((s) => String(s.ticker).toUpperCase())));
       if (tickers.length && !autoFetched) {
         autoFetched = true;
@@ -379,9 +379,9 @@
     });
   }
 
-  function draw(root, accs, banks, stocks, quotes, goals, allocs) {
+  function draw(root, accs, banks, stocks, quotes, goals, allocs, clients) {
     lastRoot = root;
-    lastCtx = { accs: accs || [], banks: banks || [], stocks: stocks || [], quotes: quotes || {}, goals: goals || [], allocs: allocs || [] };
+    lastCtx = { accs: accs || [], banks: banks || [], stocks: stocks || [], quotes: quotes || {}, goals: goals || [], allocs: allocs || [], clients: clients || [] };
     const cash = totalOf(accs);
     const stocksList = stocks || [];
     let stockTotal = 0;
@@ -424,6 +424,13 @@
         '</div></div>';
     }
 
+    const clients = lastCtx.clients || [];
+    const clientsSection =
+      '<div class="section-row"><h3 class="section-title">Klanten</h3></div>' +
+      (clients.length
+        ? '<div class="client-grid">' + clients.map((c) => clientCard(c, App.state.data.projects || [])).join('') + '</div>'
+        : '<p class="muted-sm" style="text-align:center">Nog geen klanten \u2014 voeg ze toe via de + knop.</p>');
+
     const goalsSection =
       '<div class="section-row"><h3 class="section-title">Doelen</h3></div>' +
       (goals.length
@@ -449,6 +456,7 @@
       (!groupsHTML
         ? '<p class="muted-sm" style="margin-top:14px;text-align:center">Gebruik de + knop om een bank en rekening toe te voegen.</p>'
         : '') +
+      clientsSection +
       goalsSection +
       (trackedCount
         ? '<p class="approx-note">* Winsten en rendementen van getrackte aandelen zijn bij benadering: berekend op basis van de laatst beschikbare koers- en wisselgegevens.</p>'
@@ -466,11 +474,13 @@
       '<button type="button" class="set-row" data-add-acc><span class="set-icon">' + Icons.wallet + '</span><span class="set-main"><b>Rekening</b><span class="set-sub">bv. Zichtrekening, Spaarrekening</span></span>' + Icons.chevronRight + '</button>' +
       '<button type="button" class="set-row" data-add-stock><span class="set-icon">' + Icons.chart + '</span><span class="set-main"><b>Aandeel</b><span class="set-sub">bv. TTWO, HOWL \u2014 optioneel live koers</span></span>' + Icons.chevronRight + '</button>' +
       '<button type="button" class="set-row" data-add-goal><span class="set-icon">' + Icons.target + '</span><span class="set-main"><b>Doel</b><span class="set-sub">bv. Huis: \u20AC40.000</span></span>' + Icons.chevronRight + '</button>' +
+      '<button type="button" class="set-row" data-add-client><span class="set-icon">' + Icons.user + '</span><span class="set-main"><b>Klant</b><span class="set-sub">bv. Sheraton, Studio Brussels</span></span>' + Icons.chevronRight + '</button>' +
       '</div>';
     U.qs('[data-add-bank]', sh.body).addEventListener('click', () => { sh.close(); bankSheet(null, () => render(lastRoot)); });
     U.qs('[data-add-acc]', sh.body).addEventListener('click', () => { sh.close(); accSheet(null, () => render(lastRoot)); });
     U.qs('[data-add-stock]', sh.body).addEventListener('click', () => { sh.close(); stockSheet(null, () => render(lastRoot)); });
     U.qs('[data-add-goal]', sh.body).addEventListener('click', () => { sh.close(); goalSheet(null, () => render(lastRoot)); });
+    U.qs('[data-add-client]', sh.body).addEventListener('click', () => { sh.close(); clientSheet(null, () => render(lastRoot)); });
   }
 
   function normLot(l) {
@@ -783,6 +793,10 @@
     const refreshBtn = U.qs('[data-refresh-stocks]', root);
     if (refreshBtn) refreshBtn.addEventListener('click', () => refreshQuotes(true));
 
+    U.qsa('[data-client-detail]', root).forEach((b) =>
+      b.addEventListener('click', () => clientDetail(b.getAttribute('data-client-detail')))
+    );
+
     U.qsa('[data-goal-detail]', root).forEach((b) =>
       b.addEventListener('click', () => detailSheet(b.getAttribute('data-goal-detail')))
     );
@@ -839,6 +853,125 @@
         render(lastRoot);
       })
     );
+  }
+
+  function clientSheet(existing, onDone) {
+    const sh = Sheet.open({ title: existing ? 'Klant bewerken' : 'Nieuwe klant', small: true });
+    const vals = existing
+      ? { name: existing.name || '', email: existing.email || '', phone: existing.phone || '', address: existing.address || '', notes: existing.notes || '' }
+      : { name: '', email: '', phone: '', address: '', notes: '' };
+    sh.body.innerHTML =
+      '<form autocomplete="off">' +
+      Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', required: true, value: vals.name, placeholder: 'bv. Sheraton' }) +
+      Forms.fieldRow({ name: 'email', label: 'E-mail (optioneel)', type: 'email', value: vals.email, placeholder: 'info@voorbeeld.be' }) +
+      Forms.fieldRow({ name: 'phone', label: 'Telefoon (optioneel)', type: 'tel', value: vals.phone, placeholder: '+32 ...' }) +
+      Forms.fieldRow({ name: 'address', label: 'Adres (optioneel)', type: 'text', value: vals.address, placeholder: 'Straat, stad' }) +
+      Forms.fieldRow({ name: 'notes', label: 'Notities (optioneel)', type: 'textarea', rows: 2, value: vals.notes }) +
+      '<div class="form-actions column">' +
+      '<button type="submit" class="btn btn-gold btn-block">' + Icons.check + (existing ? 'Bijwerken' : 'Toevoegen') + '</button>' +
+      '<button type="button" class="btn btn-ghost btn-block" data-cancel>Annuleren</button>' +
+      '</div></form>';
+    const form = U.qs('form', sh.body);
+    U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      Forms.clearErrors(form);
+      const res = Forms.readForm(form, [
+        { name: 'name', label: 'Naam', type: 'text', required: true },
+        { name: 'email', label: 'E-mail', type: 'email' },
+        { name: 'phone', label: 'Telefoon', type: 'text' },
+        { name: 'address', label: 'Adres', type: 'text' },
+        { name: 'notes', label: 'Notities', type: 'text' }
+      ]);
+      if (!res.ok) { toast('Controleer de gemarkeerde velden', 'error'); return; }
+      const clients = await DB.getAll('clients');
+      if (!existing && clients.some((c) => c.name.toLowerCase() === String(res.values.name).toLowerCase())) {
+        toast('Er bestaat al een klant met deze naam', 'error');
+        return;
+      }
+      const rec = {
+        id: existing ? existing.id : 'cli_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        name: String(res.values.name),
+        email: String(res.values.email || ''),
+        phone: String(res.values.phone || ''),
+        address: String(res.values.address || ''),
+        notes: String(res.values.notes || ''),
+        createdAt: existing ? existing.createdAt : new Date().toISOString()
+      };
+      await DB.put('clients', rec);
+      await App.reloadAll();
+      sh.close();
+      toast(existing ? 'Klant bijgewerkt' : 'Klant toegevoegd');
+      if (onDone) onDone();
+    });
+  }
+
+  function clientCard(c, projects) {
+    const cProjects = projects.filter((p) => p.client && p.client.toLowerCase() === c.name.toLowerCase());
+    const totalIncome = cProjects.reduce((s, p) => s + (Number(p.income) || 0), 0);
+    return (
+      '<button type="button" class="card client-tile" data-client-detail="' + U.esc(c.id) + '">' +
+      '<div class="client-top">' +
+      '<span class="client-name"><span class="client-icon">' + Icons.user + '</span>' + U.esc(c.name) + '</span>' +
+      (cProjects.length ? '<span class="client-count">' + cProjects.length + ' ' + (cProjects.length === 1 ? 'opdracht' : 'opdrachten') + '</span>' : '') +
+      '</div>' +
+      (c.email ? '<div class="client-info">' + U.esc(c.email) + '</div>' : '') +
+      (c.phone ? '<div class="client-info">' + U.esc(c.phone) + '</div>' : '') +
+      (totalIncome > 0 ? '<div class="client-revenue">Totaal: <b>' + U.esc(U.fmtMoney(totalIncome)) + '</b></div>' : '') +
+      '</button>'
+    );
+  }
+
+  function clientDetail(clientId) {
+    const ctx = lastCtx;
+    if (!ctx) return;
+    const c = ctx.clients.find((x) => x.id === clientId);
+    if (!c) return;
+    const projects = (App.state.data.projects || []).filter((p) => p.client && p.client.toLowerCase() === c.name.toLowerCase());
+    const totalIncome = projects.reduce((s, p) => s + (Number(p.income) || 0), 0);
+    const sh = Sheet.open({ title: c.name, small: false });
+    const projRows = projects.length
+      ? projects.map((p) => {
+        const st = U.statusInfo(U.PROJECT_STATUS, p.status);
+        return '<div class="up-row card"><span class="row-main"><span class="row-title">' + U.esc(p.name) + '</span>' +
+          '<span class="row-sub">' + U.esc(p.date ? U.fmtDate(p.date) : 'Geen datum') + '</span></span>' +
+          '<span class="row-side"><span class="row-money">' + U.esc(U.fmtMoney(p.income)) + '</span>' +
+          '<span class="pill" style="--pc:' + st.color + '">' + U.esc(st.label) + '</span></span></div>';
+      }).join('')
+      : '<p class="muted-sm">Nog geen opdrachten voor deze klant.</p>';
+    sh.body.innerHTML =
+      '<div class="client-detail-info">' +
+      (c.email ? '<div class="client-detail-row">' + Icons.mail + ' ' + U.esc(c.email) + '</div>' : '') +
+      (c.phone ? '<div class="client-detail-row">' + Icons.phone + ' ' + U.esc(c.phone) + '</div>' : '') +
+      (c.address ? '<div class="client-detail-row">' + U.esc(c.address) + '</div>' : '') +
+      (c.notes ? '<p class="muted-sm">' + U.esc(c.notes) + '</p>' : '') +
+      (totalIncome > 0 ? '<div class="detail-profit"><span>Totaal omzet</span><span>' + U.esc(U.fmtMoney(totalIncome)) + '</span></div>' : '') +
+      '</div>' +
+      '<h3 class="section-title">Opdrachten</h3>' +
+      '<div class="stack-list">' + projRows + '</div>' +
+      '<div class="form-actions column" style="margin-top:14px">' +
+      '<button type="button" class="btn btn-gold btn-block" data-cli-edit>' + Icons.edit + 'Bewerken</button>' +
+      '<button type="button" class="btn btn-danger-ghost btn-block" data-cli-del>' + Icons.trash + 'Verwijderen</button>' +
+      '<button type="button" class="btn btn-ghost btn-block" data-det-close>Sluiten</button>' +
+      '</div>';
+    U.qs('[data-det-close]', sh.body).addEventListener('click', () => sh.close());
+    U.qs('[data-cli-edit]', sh.body).addEventListener('click', () => {
+      sh.close();
+      clientSheet(c, () => render(lastRoot));
+    });
+    U.qs('[data-cli-del]', sh.body).addEventListener('click', async () => {
+      const ok = await confirmAction({
+        title: 'Klant verwijderen',
+        message: '"' + c.name + '" wordt verwijderd. Opdrachten blijven behouden.',
+        danger: true
+      });
+      if (!ok) return;
+      await DB.delete('clients', c.id);
+      await App.reloadAll();
+      sh.close();
+      toast('Klant verwijderd');
+      render(lastRoot);
+    });
   }
 
   function goalSheet(existing, onDone) {

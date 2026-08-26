@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.12.3';
+  const VERSION = '1.13.0';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -20,7 +20,7 @@
 
   const state = {
     route: 'start',
-    data: { projects: [] },
+    data: { projects: [], expenses: [], clients: [] },
     settings: { goal: 0, userName: 'Liam', autoLock: 5, onboarded: false },
     dashPeriod: 'year',
     calCursor: null,
@@ -49,6 +49,8 @@
 
   async function reloadAll() {
     await reloadStore('projects');
+    await reloadStore('expenses');
+    await reloadStore('clients');
   }
 
   async function loadSettings() {
