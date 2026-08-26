@@ -879,13 +879,17 @@
     const opts = ctx.accs
       .map((a) => {
         const free = Math.max(0, (Number(a.balance) || 0) - allocForSrc(ctx.allocs, 'acc', a.id));
-        return { value: 'acc:' + a.id, label: a.name + ' \u2014 ' + U.fmtMoney(free) + ' vrij' };
+        const bank = ctx.banks.find((b) => b.id === a.bankId);
+        const bankTxt = bank ? ' (' + bank.name + ')' : '';
+        return { value: 'acc:' + a.id, label: a.name + bankTxt + ' \u2014 ' + U.fmtMoney(free) + ' vrij' };
       })
       .concat(
         ctx.stocks.map((s) => {
           const val = stockValue(s, ctx.quotes).value;
           const free = Math.max(0, val - allocForSrc(ctx.allocs, 'stk', s.id));
-          return { value: 'stk:' + s.id, label: s.name + ' \u2014 \u2248 ' + U.fmtMoney(free) + ' vrij' };
+          const bank = ctx.banks.find((b) => b.id === s.bankId);
+          const bankTxt = bank ? ' (' + bank.name + ')' : '';
+          return { value: 'stk:' + s.id, label: s.name + bankTxt + ' \u2014 \u2248 ' + U.fmtMoney(free) + ' vrij' };
         })
       );
     if (!opts.length) {
