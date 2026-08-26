@@ -188,6 +188,10 @@
       '</form>';
 
     const form = U.qs('#meet-form', sh.body);
+    if (window.App && App.attachClientAutocomplete) {
+      const cliInput = form.elements['client'];
+      if (cliInput) App.attachClientAutocomplete(cliInput);
+    }
     U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
     form.addEventListener('submit', async (e) => {
       e.preventDefault();

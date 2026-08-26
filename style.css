@@ -3672,66 +3672,6 @@ button.set-row:hover {
   transition: width 0.4s ease;
 }
 
-.client-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.client-tile {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 12px 14px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.client-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.client-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 750;
-  font-size: 14.5px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-icon svg {
-  width: 15px;
-  height: 15px;
-  color: var(--gold);
-  flex: none;
-}
-
-.client-count {
-  flex: none;
-  font-size: 11.5px;
-  color: var(--txt3);
-}
-
-.client-info {
-  font-size: 12px;
-  color: var(--txt2);
-}
-
-.client-revenue {
-  margin-top: 3px;
-  font-size: 12.5px;
-  color: var(--txt2);
-  font-feature-settings: 'tnum';
-}
-
 .client-detail-info {
   margin-bottom: 12px;
 }
@@ -3751,6 +3691,32 @@ button.set-row:hover {
   color: var(--gold);
   flex: none;
 }
+
+.ac-list {
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+  z-index: 50;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.ac-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  color: var(--txt1);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ac-item:hover { background: rgba(255,255,255,.06); }
 
 .expense-row {
   cursor: default;

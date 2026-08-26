@@ -1,6 +1,6 @@
 (function () {
   const U = window.U;
-  const VERSION = '1.13.1';
+  const VERSION = '1.14.0';
 
   const THEME_COLORS = {
     '': { main: '#d4903b', bright: '#e6a54e' },
@@ -198,6 +198,8 @@
         '<span class="set-main"><b>Opdracht</b><span class="set-sub">Shoot, montage of project</span></span>' + Icons.chevronRight + '</button>' +
         '<button type="button" class="set-row" data-q-meet><span class="set-icon">' + Icons.clock + '</span>' +
         '<span class="set-main"><b>Meeting</b><span class="set-sub">Afspraak met datum en uur</span></span>' + Icons.chevronRight + '</button>' +
+        '<button type="button" class="set-row" data-q-cli><span class="set-icon">' + Icons.user + '</span>' +
+        '<span class="set-main"><b>Klant</b><span class="set-sub">Klantprofiel beheren</span></span>' + Icons.chevronRight + '</button>' +
         '</div>';
       U.qs('[data-q-proj]', sh.body).addEventListener('click', () => {
         sh.close();
@@ -206,6 +208,10 @@
       U.qs('[data-q-meet]', sh.body).addEventListener('click', () => {
         sh.close();
         if (window.Meetings) Meetings.openForm(null);
+      });
+      U.qs('[data-q-cli]', sh.body).addEventListener('click', () => {
+        sh.close();
+        openClientChooser();
       });
     }
 
@@ -435,6 +441,158 @@
     });
   }
 
+  /* ── Client profiles ── */
+  async function clientSheet(existing, onDone) {
+    const sh = Sheet.open({ title: existing ? 'Klant bewerken' : 'Nieuwe klant', small: true });
+    const vals = existing
+      ? { name: existing.name || '', email: existing.email || '', phone: existing.phone || '', address: existing.address || '', notes: existing.notes || '' }
+      : { name: '', email: '', phone: '', address: '', notes: '' };
+    sh.body.innerHTML =
+      '<form autocomplete="off">' +
+      Forms.fieldRow({ name: 'name', label: 'Naam', type: 'text', required: true, value: vals.name, placeholder: 'bv. Sheraton' }) +
+      Forms.fieldRow({ name: 'email', label: 'E-mail (optioneel)', type: 'email', value: vals.email, placeholder: 'info@voorbeeld.be' }) +
+      Forms.fieldRow({ name: 'phone', label: 'Telefoon (optioneel)', type: 'tel', value: vals.phone, placeholder: '+32 ...' }) +
+      Forms.fieldRow({ name: 'address', label: 'Adres (optioneel)', type: 'text', value: vals.address, placeholder: 'Straat, stad' }) +
+      Forms.fieldRow({ name: 'notes', label: 'Notities (optioneel)', type: 'textarea', rows: 2, value: vals.notes }) +
+      '<div class="form-actions column">' +
+      '<button type="submit" class="btn btn-gold btn-block">' + Icons.check + (existing ? 'Bijwerken' : 'Toevoegen') + '</button>' +
+      '<button type="button" class="btn btn-ghost btn-block" data-cancel>Annuleren</button>' +
+      '</div></form>';
+    const form = U.qs('form', sh.body);
+    U.qs('[data-cancel]', sh.body).addEventListener('click', () => sh.close());
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      Forms.clearErrors(form);
+      const res = Forms.readForm(form, [
+        { name: 'name', label: 'Naam', type: 'text', required: true },
+        { name: 'email', label: 'E-mail', type: 'email' },
+        { name: 'phone', label: 'Telefoon', type: 'text' },
+        { name: 'address', label: 'Adres', type: 'text' },
+        { name: 'notes', label: 'Notities', type: 'text' }
+      ]);
+      if (!res.ok) { toast('Controleer de gemarkeerde velden', 'error'); return; }
+      const clients = await DB.getAll('clients');
+      if (!existing && clients.some((c) => c.name.toLowerCase() === String(res.values.name).toLowerCase())) {
+        toast('Er bestaat al een klant met deze naam', 'error');
+        return;
+      }
+      const rec = {
+        id: existing ? existing.id : 'cli_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        name: String(res.values.name),
+        email: String(res.values.email || ''),
+        phone: String(res.values.phone || ''),
+        address: String(res.values.address || ''),
+        notes: String(res.values.notes || ''),
+        createdAt: existing ? existing.createdAt : new Date().toISOString()
+      };
+      await DB.put('clients', rec);
+      await reloadAll();
+      sh.close();
+      toast(existing ? 'Klant bijgewerkt' : 'Klant toegevoegd');
+      if (onDone) onDone();
+    });
+  }
+
+  function attachClientAutocomplete(inputEl) {
+    if (!inputEl || inputEl.dataset.clientAc) return;
+    inputEl.dataset.clientAc = '1';
+    let listEl = null;
+    let timeout = null;
+
+    function closeList() { if (listEl) { listEl.remove(); listEl = null; } }
+
+    inputEl.addEventListener('input', () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(async () => {
+        const q = (inputEl.value || '').trim().toLowerCase();
+        closeList();
+        if (q.length < 1) return;
+        const clients = state.data.clients || [];
+        const matches = clients.filter((c) => (c.name || '').toLowerCase().indexOf(q) !== -1).slice(0, 5);
+        if (!matches.length) return;
+        listEl = document.createElement('div');
+        listEl.className = 'ac-list';
+        matches.forEach((c) => {
+          const opt = document.createElement('button');
+          opt.type = 'button';
+          opt.className = 'ac-item';
+          opt.textContent = c.name + (c.email ? ' · ' + c.email : '');
+          opt.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            inputEl.value = c.name;
+            closeList();
+          });
+          listEl.appendChild(opt);
+        });
+        inputEl.parentElement.style.position = 'relative';
+        inputEl.parentElement.appendChild(listEl);
+      }, 150);
+    });
+
+    inputEl.addEventListener('blur', () => setTimeout(closeList, 200));
+  }
+
+  function clientDetailInline(clientId) {
+    DB.get('clients', clientId).then((c) => {
+      if (!c) return;
+      const sh = Sheet.open({ title: c.name, small: true });
+      sh.body.innerHTML =
+        '<div class="client-detail-info">' +
+        (c.email ? '<div class="client-detail-row">' + Icons.user + ' ' + U.esc(c.email) + '</div>' : '') +
+        (c.phone ? '<div class="client-detail-row">' + Icons.phone + ' ' + U.esc(c.phone) + '</div>' : '') +
+        (c.address ? '<div class="client-detail-row">' + U.esc(c.address) + '</div>' : '') +
+        (c.notes ? '<p class="muted-sm">' + U.esc(c.notes) + '</p>' : '') +
+        '</div>' +
+        '<div class="form-actions column" style="margin-top:14px">' +
+        '<button type="button" class="btn btn-gold btn-block" data-cli-edit>' + Icons.edit + ' Bewerken</button>' +
+        '<button type="button" class="btn btn-danger-ghost btn-block" data-cli-del>' + Icons.trash + ' Verwijderen</button>' +
+        '<button type="button" class="btn btn-ghost btn-block" data-det-close>Sluiten</button>' +
+        '</div>';
+      U.qs('[data-det-close]', sh.body).addEventListener('click', () => sh.close());
+      U.qs('[data-cli-edit]', sh.body).addEventListener('click', () => { sh.close(); clientSheet(c); });
+      U.qs('[data-cli-del]', sh.body).addEventListener('click', async () => {
+        const ok = await confirmAction({ title: 'Klant verwijderen', message: '"' + c.name + '" verwijderen?', danger: true });
+        if (!ok) return;
+        await DB.delete('clients', c.id);
+        await reloadAll();
+        sh.close();
+        toast('Klant verwijderd');
+      });
+    });
+  }
+
+  function openClientChooser() {
+    const sh = Sheet.open({ title: 'Klant', small: true });
+    sh.body.innerHTML =
+      '<div class="stack-list">' +
+      '<button type="button" class="set-row" data-c-new><span class="set-icon">' + Icons.plus + '</span>' +
+      '<span class="set-main"><b>Nieuwe klant</b><span class="set-sub">Naam, e-mail, telefoon</span></span>' + Icons.chevronRight + '</button>' +
+      '<div id="cli-search-wrap" class="form-field"><div class="input-icon">' + Icons.search +
+      '<input type="search" id="cli-search" placeholder="Zoek klant..." autocomplete="off" class="form-input"/></div></div>' +
+      '<div id="cli-list"></div></div>';
+    U.qs('[data-c-new]', sh.body).addEventListener('click', () => { sh.close(); clientSheet(null); });
+
+    const searchEl = U.qs('#cli-search', sh.body);
+    const listEl = U.qs('#cli-list', sh.body);
+    function renderClients(filter) {
+      const q = (filter || '').toLowerCase();
+      const clients = (state.data.clients || []).filter((c) => !q || (c.name || '').toLowerCase().indexOf(q) !== -1);
+      if (!clients.length) { listEl.innerHTML = '<p class="muted-sm" style="text-align:center">Geen klanten gevonden.</p>'; return; }
+      listEl.innerHTML = clients.map((c) =>
+        '<button type="button" class="set-row" data-cli-det="' + U.esc(c.id) + '">' +
+        '<span class="set-icon">' + Icons.user + '</span>' +
+        '<span class="set-main"><b>' + U.esc(c.name) + '</b>' +
+        (c.email ? '<span class="set-sub">' + U.esc(c.email) + '</span>' : '') +
+        '</span>' + Icons.chevronRight + '</button>'
+      ).join('');
+      U.qsa('[data-cli-det]', listEl).forEach((b) =>
+        b.addEventListener('click', () => { sh.close(); clientDetailInline(b.getAttribute('data-cli-det')); })
+      );
+    }
+    renderClients('');
+    searchEl.addEventListener('input', () => renderClients(searchEl.value));
+  }
+
   window.App = {
     state,
     VERSION,
@@ -444,6 +602,9 @@
     upsertRecord,
     patchRecord,
     removeRecord,
+    clientSheet,
+    clientDetailInline,
+    attachClientAutocomplete,
     lockNow() { Auth.showLock(); }
   };
 

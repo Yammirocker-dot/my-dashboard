@@ -130,6 +130,10 @@
       '</div></form>';
 
     const form = U.qs('form', sh.body);
+    if (window.App && App.attachClientAutocomplete) {
+      const cliInput = form.elements['client'];
+      if (cliInput) App.attachClientAutocomplete(cliInput);
+    }
 
     function collectIvs() {
       return U.qsa('[data-iv]', form).map((r) => ({
