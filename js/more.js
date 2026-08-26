@@ -84,36 +84,35 @@
     const oldSub = sub ? sub.textContent : '';
     btn.disabled = true;
     if (sub) sub.textContent = 'Controleren\u2026';
-    let found = null;
+    let found = false;
     try {
       const reg = window.__swReg || await navigator.serviceWorker.getRegistration();
-      if (!reg) {
-        toast('Je hebt de nieuwste versie');
-        btn.disabled = false;
-        if (sub) sub.textContent = oldSub;
-        return;
+      if (reg) {
+        reg.addEventListener('updatefound', () => { found = true; }, { once: true });
+        await reg.update();
+        await new Promise((resolve) => {
+          let waited = 0;
+          const timer = setInterval(() => {
+            waited += 300;
+            if (found || reg.waiting || waited >= 5000) { clearInterval(timer); resolve(); }
+          }, 300);
+        });
       }
-      reg.addEventListener('updatefound', () => {
-        const nw = reg.installing || reg.waiting;
-        if (nw) found = nw;
-      });
-      await reg.update();
-      await new Promise((resolve) => {
-        let waited = 0;
-        const timer = setInterval(() => {
-          waited += 300;
-          if (found || reg.waiting || waited >= 6000) {
-            clearInterval(timer);
-            resolve();
-          }
-        }, 300);
-      });
+
+      if (!found && !reg?.waiting) {
+        try {
+          const res = await fetch('js/app.js?t=' + Date.now(), { cache: 'no-store' });
+          const txt = await res.text();
+          const m = txt.match(/const\s+VERSION\s*=\s*'([^']+)'/);
+          if (m && m[1] !== VERSION) found = true;
+        } catch (e) {}
+      }
 
       btn.disabled = false;
       if (sub) sub.textContent = oldSub;
 
-      if (!found && !reg.waiting) {
-        toast('Geen nieuwe versie gevonden \u2014 probeer over enkele minuten opnieuw', 'info');
+      if (!found) {
+        toast('Je hebt de nieuwste versie (' + VERSION + ')');
         return;
       }
 
