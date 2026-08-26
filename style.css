@@ -3695,10 +3695,10 @@ button.set-row:hover {
 .ac-list {
   position: absolute;
   left: 0; right: 0; top: 100%;
-  background: var(--card);
+  background: #1a1f1a;
   border: 1px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+  box-shadow: 0 8px 22px rgba(0,0,0,.55);
   z-index: 50;
   max-height: 180px;
   overflow-y: auto;
@@ -3711,12 +3711,12 @@ button.set-row:hover {
   padding: 10px 12px;
   font-size: 13.5px;
   color: var(--txt1);
-  background: none;
+  background: #1a1f1a;
   border: none;
   cursor: pointer;
 }
 
-.ac-item:hover { background: rgba(255,255,255,.06); }
+.ac-item:hover { background: #222a22; }
 
 .expense-row {
   cursor: default;
