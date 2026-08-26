@@ -384,9 +384,13 @@
     const S = App.state;
     return {
       app: 'vhxmedia-dashboard',
-      formatVersion: 4,
+      formatVersion: 5,
       exportedAt: new Date().toISOString(),
       projects: S.data.projects,
+      clients: await DB.getAll('clients'),
+      otherIncome: await DB.getAll('otherIncome'),
+      expenses: await DB.getAll('expenses'),
+      events: await DB.getAll('events'),
       banks: (await DB.getSetting('banks', [])) || [],
       accounts: (await DB.getSetting('accounts', [])) || [],
       stocks: (await DB.getSetting('stocks', [])) || [],
@@ -549,6 +553,16 @@
     return out;
   }
 
+  function sanitizeGeneric(list) {
+    const out = [];
+    for (const r of list) {
+      if (!r || typeof r !== 'object') continue;
+      if (!r.id || typeof r.id !== 'string') continue;
+      out.push(Object.assign({}, r));
+    }
+    return out;
+  }
+
   async function importData(file) {
     let parsed;
     try {
@@ -562,6 +576,10 @@
       toast('Dit lijkt geen VHXmedia-back-up te zijn', 'error');
       return;
     }
+    const clients = Array.isArray(parsed.clients) ? sanitizeGeneric(parsed.clients) : [];
+    const otherIncome = Array.isArray(parsed.otherIncome) ? sanitizeGeneric(parsed.otherIncome) : [];
+    const expenses = Array.isArray(parsed.expenses) ? sanitizeGeneric(parsed.expenses) : [];
+    const events = Array.isArray(parsed.events) ? sanitizeGeneric(parsed.events) : [];
     const banks = Array.isArray(parsed.banks) ? sanitizeBanks(parsed.banks) : [];
     const accounts = Array.isArray(parsed.accounts) ? sanitizeAccounts(parsed.accounts) : [];
     const stocks = Array.isArray(parsed.stocks) ? sanitizeStocks(parsed.stocks) : [];
@@ -577,6 +595,10 @@
       : [];
 
     const delen = [projects.length + ' opdrachten'];
+    if (clients.length) delen.push(clients.length + ' klanten');
+    if (otherIncome.length) delen.push(otherIncome.length + ' ander inkomen');
+    if (expenses.length) delen.push(expenses.length + ' uitgaven');
+    if (events.length) delen.push(events.length + ' gebeurtenissen');
     if (meetings.length) delen.push(meetings.length + ' meetings');
     if (banks.length) delen.push(banks.length + ' banken');
     if (accounts.length) delen.push(accounts.length + ' rekeningen');
@@ -603,6 +625,10 @@
         await DB.put('projects', rec);
         count++;
       }
+      for (const r of clients) { await DB.put('clients', r); }
+      for (const r of otherIncome) { await DB.put('otherIncome', r); }
+      for (const r of expenses) { await DB.put('expenses', r); }
+      for (const r of events) { await DB.put('events', r); }
       if (parsed.settings && typeof parsed.settings === 'object') {
         const s = parsed.settings;
         if (s.goal != null) { await DB.setSetting('goal', Math.max(0, Number(s.goal) || 0)); }

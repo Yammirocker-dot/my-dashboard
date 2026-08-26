@@ -804,6 +804,12 @@ svg {
   border: 1px solid var(--line);
 }
 
+.progress.slim {
+  height: 8px;
+  border: none;
+  background: var(--line);
+}
+
 .progress-fill {
   height: 100%;
   border-radius: 99px;
